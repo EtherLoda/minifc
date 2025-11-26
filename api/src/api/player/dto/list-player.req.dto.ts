@@ -1,3 +1,3 @@
 import { PageOptionsDto } from '@/common/dto/offset-pagination/page-options.dto';
 
-export class ListPostReqDto extends PageOptionsDto {}
+export class ListPlayerReqDto extends PageOptionsDto { }

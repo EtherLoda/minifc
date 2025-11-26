@@ -1,7 +1,7 @@
 services:
-  nestjs-boilerplate-api:
-    image: nestjs-boilerplate-api-local
-    container_name: nestjs-boilerplate-api-local
+  minifc-api:
+    image: minifc-api-local
+    container_name: minifc-api-local
     restart: always
     build:
       context: .
@@ -15,23 +15,23 @@ services:
       - ./src:/app/src
     command: pnpm start:dev
     networks:
-      - nestjs-boilerplate-network
+      - minifc-network
 
   db:
     image: postgres:16
-    container_name: nestjs-boilerplate-postgres
+    container_name: minifc-postgres
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: nestjs_boilerplate
+      POSTGRES_DB: minifc
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       TZ: "UTC"
     ports:
       - "25432:5432"
     networks:
-      - nestjs-boilerplate-network
+      - minifc-network
 
   redis:
     image: redis/redis-stack:latest
@@ -46,7 +46,7 @@ services:
     environment:
       REDIS_ARGS: "--requirepass redispass"
     networks:
-      - nestjs-boilerplate-network
+      - minifc-network
 
   maildev:
     build:
@@ -56,7 +56,7 @@ services:
       - ${MAIL_CLIENT_PORT}:1080
       - ${MAIL_PORT}:1025
     networks:
-      - nestjs-boilerplate-network
+      - minifc-network
 
   pgadmin:
     container_name: pgadmin
@@ -71,13 +71,14 @@ services:
       PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
     networks:
-      - nestjs-boilerplate-network
+      - minifc-network
 
 volumes:
   postgres_data:
   pgadmin_data:
   redis_data:
 
+
 networks:
-  nestjs-boilerplate-network:
+  minifc-network:
     driver: bridge
