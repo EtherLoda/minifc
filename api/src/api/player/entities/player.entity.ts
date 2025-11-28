@@ -48,10 +48,12 @@ export class PlayerEntity extends AbstractEntity {
     @Column({ type: 'jsonb' })
     attributes!: Record<string, any>;
 
-    @DeleteDateColumn({
-        name: 'deleted_at',
-        type: 'timestamptz',
-        default: null,
-    })
-    deletedAt: Date;
+    @Column({ type: 'float', default: 0.0 })
+    experience!: number;
+
+    @Column({ type: 'integer', default: 5 })
+    form!: number;
+
+    @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+    deletedAt?: Date;
 }

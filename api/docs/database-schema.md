@@ -46,6 +46,8 @@ Represents a football player with comprehensive attributes.
 | `is_goalkeeper` | BOOLEAN | DEFAULT false | Whether this player is a goalkeeper |
 | `on_transfer` | BOOLEAN | DEFAULT false | Whether player is on transfer list |
 | `attributes` | JSONB | NOT NULL | Player attributes (see structure below) |
+| `experience` | FLOAT | DEFAULT 0.0 | Player experience points (0.0+) |
+| `form` | INTEGER | DEFAULT 5 | Current form rating (1-10) |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 | `deleted_at` | TIMESTAMPTZ | NULLABLE | Soft delete timestamp |
@@ -132,9 +134,11 @@ For **Goalkeepers** (`is_goalkeeper = true`):
 
 **Note**: 
 - All attribute values are stored as decimals (0.00-20.00) with 2 decimal precision
-- Players see rounded integer values (0-20) in the UI
+- **API Response**: Attributes are automatically rounded to integers (0-20) for display via Transform decorator
+- **Database Storage**: Attributes remain as floats for precise calculations
 - OVR (Overall Rating) is calculated dynamically based on position and attributes
-- Player appearance (skin tone, hair, accessories) is generated client-side based on player ID
+- Experience is stored as float and displayed with 1 decimal place
+- Form is an integer (1-10) representing current player condition
 
 **Indexes:**
 - Primary key on `id`
@@ -184,21 +188,41 @@ Stores user authentication sessions.
 
 ### Phase 2: Core Gameplay
 
-#### ManagerFinance Table (New)
-Stores financial data for each manager (separate from User table).
+#### Finance Table (Implemented)
+Stores the current financial state of a team.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique identifier |
-| `user_id` | UUID | FOREIGN KEY, UNIQUE, NOT NULL | Reference to User (one-to-one) |
-| `currency` | INTEGER | DEFAULT 100000 | In-game money/budget |
-| `total_earned` | INTEGER | DEFAULT 0 | Total currency earned all-time |
-| `total_spent` | INTEGER | DEFAULT 0 | Total currency spent all-time |
+| `team_id` | UUID | FOREIGN KEY, UNIQUE, NOT NULL | Reference to Team (one-to-one) |
+| `balance` | INTEGER | DEFAULT 100000 | Current available funds |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Last update timestamp |
 
 **Relations:**
-- One-to-One with `User` (user.id)
+- One-to-One with `Team`
+
+---
+
+#### Transaction Table (Implemented)
+Records individual financial events for detailed tracking and statistics.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique identifier |
+| `team_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Team |
+| `season` | INTEGER | NOT NULL | Season number (1, 2, 3...) |
+| `amount` | INTEGER | NOT NULL | Transaction amount (+ for income, - for expense) |
+| `type` | VARCHAR | NOT NULL | Category (e.g., 'MATCH_INCOME', 'TRANSFER_IN', 'TRANSFER_OUT', 'WAGES', 'SPONSORSHIP') |
+| `created_at` | TIMESTAMPTZ | NOT NULL | When the transaction occurred |
+
+**Relations:**
+- Many-to-One with `Team`
+
+**Notes:**
+- Positive amounts = income, Negative amounts = expenses
+- Season-based statistics can be calculated by grouping transactions
+- Type enum: MATCH_INCOME, TRANSFER_IN, TRANSFER_OUT, WAGES, SPONSORSHIP, FACILITY_UPGRADE
 
 ---
 
@@ -291,23 +315,107 @@ Tracks events that occurred during a match.
 
 ### Phase 3: Advanced Features
 
-#### Transfer Table (New)
-Tracks player transfers between teams.
+#### Transfer Table (Implemented - Legacy)
+Tracks direct player transfers between teams (deprecated in favor of Auction system).
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique transfer identifier |
 | `player_id` | UUID | FOREIGN KEY, NOT NULL | Player being transferred |
-| `from_team_id` | UUID | FOREIGN KEY, NULLABLE | Previous team (null for new players) |
-| `to_team_id` | UUID | FOREIGN KEY, NOT NULL | New team |
-| `transfer_fee` | INTEGER | NOT NULL | Amount paid |
-| `transfer_date` | DATE | DEFAULT NOW() | When transfer occurred |
+| `from_team_id` | UUID | FOREIGN KEY, NOT NULL | Selling team |
+| `to_team_id` | UUID | FOREIGN KEY, NULLABLE | Buying team (null until completed) |
+| `price` | INTEGER | NOT NULL | Transfer fee |
+| `status` | VARCHAR | DEFAULT 'LISTED' | LISTED, PENDING, COMPLETED, CANCELLED |
+| `completed_at` | TIMESTAMPTZ | NULLABLE | When transfer was completed |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 
 **Relations:**
 - Many-to-One with `Player`
 - Many-to-One with `Team` (from_team_id)
 - Many-to-One with `Team` (to_team_id)
+
+---
+
+#### Auction Table (Implemented)
+Manages player auctions with bidding system.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique auction identifier |
+| `player_id` | UUID | FOREIGN KEY, NOT NULL | Player being auctioned |
+| `team_id` | UUID | FOREIGN KEY, NOT NULL | Seller team |
+| `start_price` | INTEGER | NOT NULL | Minimum starting bid |
+| `buyout_price` | INTEGER | NOT NULL | Instant purchase price |
+| `current_price` | INTEGER | NOT NULL | Current highest bid |
+| `current_bidder_id` | UUID | FOREIGN KEY, NULLABLE | Current highest bidder team |
+| `started_at` | TIMESTAMPTZ | NOT NULL | Auction start time |
+| `ends_at` | TIMESTAMPTZ | NOT NULL | Auction end time (dynamic, extends with late bids) |
+| `bid_history` | JSONB | DEFAULT [] | Array of bid records |
+| `status` | VARCHAR | DEFAULT 'ACTIVE' | ACTIVE, SOLD, EXPIRED, CANCELLED |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
+
+**Bid History Structure (JSONB):**
+```json
+[
+  {
+    "teamId": "uuid",
+    "amount": 50000,
+    "timestamp": "2025-11-29T00:00:00Z"
+  }
+]
+```
+
+**Relations:**
+- Many-to-One with `Player`
+- Many-to-One with `Team` (seller)
+- Many-to-One with `Team` (current_bidder)
+
+**Auction Mechanics:**
+- Bids must exceed current_price + minimum increment (configured in app)
+- Bids within last 3 minutes extend auction by 3 minutes
+- Buyout price triggers instant sale
+- Expired auctions with no bids return player to seller
+- Expired auctions with bids complete sale to highest bidder
+
+---
+
+#### PlayerHistory Table (Implemented)
+Records significant events in a player's career.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique identifier |
+| `player_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Player |
+| `season` | INTEGER | NOT NULL | Season when event occurred |
+| `date` | TIMESTAMPTZ | NOT NULL | Event date |
+| `event_type` | VARCHAR | NOT NULL | TRANSFER, CONTRACT_RENEWAL, AWARD, INJURY, DEBUT |
+| `details` | JSONB | NULLABLE | Event-specific details |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
+
+**Details Structure Examples (JSONB):**
+
+Transfer:
+```json
+{
+  "fromTeamId": "uuid",
+  "toTeamId": "uuid",
+  "price": 50000,
+  "auctionId": "uuid"
+}
+```
+
+Award:
+```json
+{
+  "awardType": "Player of the Month",
+  "description": "Best player in November"
+}
+```
+
+**Relations:**
+- Many-to-One with `Player`
 
 ---
 
@@ -342,26 +450,46 @@ Tracks team positions in a league.
 ```
 User (Manager)
 ├── 1:N → Session
-├── 1:1 → ManagerFinance
-├── 1:1 → Team
-└── 1:N → Player (optional direct ownership)
-
-ManagerFinance
-└── 1:1 → User
+└── 1:1 → Team
 
 Team
+├── 1:1 → Finance
 ├── N:1 → League
 ├── 1:N → Player
-├── 1:N → Match (as home_team)
-├── 1:N → Match (as away_team)
+├── 1:N → Transaction
+├── 1:N → Auction (as seller)
+├── 1:N → Auction (as current_bidder)
 ├── 1:N → Transfer (from_team)
 ├── 1:N → Transfer (to_team)
+├── 1:N → Match (as home_team)
+├── 1:N → Match (as away_team)
 └── 1:N → LeagueStanding
+
+Finance
+└── 1:1 → Team
+
+Transaction
+└── N:1 → Team
 
 Player
 ├── N:1 → Team
-├── 1:N → MatchEvent
-└── 1:N → Transfer
+├── 1:N → Auction
+├── 1:N → Transfer
+├── 1:N → PlayerHistory
+└── 1:N → MatchEvent
+
+Auction
+├── N:1 → Player
+├── N:1 → Team (seller)
+└── N:1 → Team (current_bidder)
+
+PlayerHistory
+└── N:1 → Player
+
+Transfer
+├── N:1 → Player
+├── N:1 → Team (from_team)
+└── N:1 → Team (to_team)
 
 Match
 ├── N:1 → Team (home_team)
@@ -377,9 +505,9 @@ League
 
 ## Implementation Status
 
-- ✅ **Implemented**: User (enhanced), Player, Session
+- ✅ **Implemented**: User, Player, Session, Team, League, Finance, Transaction, Auction, PlayerHistory, Transfer
 - 🔄 **In Progress**: None
-- 📋 **Planned**: ManagerFinance, League, Team, Match, MatchEvent, Transfer, LeagueStanding
+- 📋 **Planned**: Match, MatchEvent, LeagueStanding
 
 ---
 
@@ -389,10 +517,13 @@ League
 - All tables include `created_at` and `updated_at` timestamps
 - Most tables support soft deletes via `deleted_at`
 - All foreign keys should have indexes for performance
-- Player stats (speed, power, skill) range from 1-99
-- Currency and market values are stored as integers (no decimals)
+- Player attributes range from 0.00-20.00 (stored as decimals, displayed as integers)
+- Currency and financial values are stored as integers (no decimals)
+- Seasons are represented as integers (1, 2, 3...) for simplicity
+- Auction system uses JSONB for bid history to maintain complete audit trail
+- Transaction types are enum-based for consistency
 
 ---
 
-**Last Updated**: 2025-11-27
-**Version**: 1.1.0
+**Last Updated**: 2025-11-29
+**Version**: 2.0.0
