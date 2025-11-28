@@ -38,9 +38,10 @@ Represents a football player with comprehensive attributes.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique player identifier |
+| `team_id` | UUID | FOREIGN KEY, NULLABLE | Reference to Team (Many-to-One) |
 | `name` | VARCHAR | NOT NULL | Player's full name |
 | `birthday` | DATE | NULLABLE | Player's date of birth |
-| `avatar` | VARCHAR | DEFAULT '' | Player avatar image URL or identifier |
+| `appearance` | JSONB | NOT NULL | Player appearance configuration (see structure below) |
 | `position` | VARCHAR | NULLABLE | Player position (GK, DEF, MID, FWD) - set by manager |
 | `is_goalkeeper` | BOOLEAN | DEFAULT false | Whether this player is a goalkeeper |
 | `on_transfer` | BOOLEAN | DEFAULT false | Whether player is on transfer list |
@@ -48,6 +49,37 @@ Represents a football player with comprehensive attributes.
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 | `deleted_at` | TIMESTAMPTZ | NULLABLE | Soft delete timestamp |
+
+**Appearance Structure (JSONB):**
+
+The appearance object defines the visual characteristics of a player for frontend rendering. All values are integers or booleans to ensure consistent rendering across different clients.
+
+```json
+{
+  "skinTone": 3,        // Integer 1-6: Player's skin tone
+                        // 1=Very Light, 2=Light, 3=Medium Light, 4=Medium, 5=Medium Dark, 6=Dark
+  
+  "hairStyle": 5,       // Integer 1-10: Hairstyle variant
+                        // 1=Bald, 2=Short, 3=Crew Cut, 4=Spiky, 5=Medium, 
+                        // 6=Long, 7=Curly, 8=Afro, 9=Ponytail, 10=Dreadlocks
+  
+  "hairColor": 2,       // Integer 1-8: Hair color
+                        // 1=Black, 2=Dark Brown, 3=Brown, 4=Light Brown,
+                        // 5=Blonde, 6=Red, 7=Gray, 8=White
+  
+  "facialHair": 1,      // Integer 0-5: Facial hair style
+                        // 0=None, 1=Stubble, 2=Goatee, 3=Full Beard,
+                        // 4=Mustache, 5=Soul Patch
+  
+  "accessories": {
+    "headband": false,   // Boolean: Whether player wears a headband
+    "wristband": true,   // Boolean: Whether player wears wristbands
+    "captainBand": false // Boolean: Whether player wears captain's armband
+  }
+}
+```
+
+**Note**: The frontend MiniPlayer component uses these values to render the pixel art representation. Each value maps to a specific sprite or color in the rendering system.
 
 **Attributes Structure (JSONB):**
 
@@ -106,9 +138,10 @@ For **Goalkeepers** (`is_goalkeeper = true`):
 
 **Indexes:**
 - Primary key on `id`
+- Foreign key on `team_id`
 
 **Relations:**
-- None (currently standalone)
+- Many-to-One with `Team`
 
 ---
 
@@ -149,8 +182,6 @@ Stores user authentication sessions.
 
 ---
 
----
-
 ### Phase 2: Core Gameplay
 
 #### ManagerFinance Table (New)
@@ -171,6 +202,24 @@ Stores financial data for each manager (separate from User table).
 
 ---
 
+#### League Table (New)
+Represents a competition/league.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique league identifier |
+| `name` | VARCHAR | NOT NULL | League name (e.g., "Premier League") |
+| `season` | VARCHAR | NOT NULL | Season (e.g., "2024-25") |
+| `status` | VARCHAR | DEFAULT 'active' | active, completed |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
+
+**Relations:**
+- One-to-Many with `Team`
+- One-to-Many with `LeagueStanding`
+
+---
+
 #### Team Table (New)
 Represents a football team owned by a manager.
 
@@ -178,51 +227,24 @@ Represents a football team owned by a manager.
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique team identifier |
 | `user_id` | UUID | FOREIGN KEY, UNIQUE, NOT NULL | Manager/owner of the team (one-to-one) |
+| `league_id` | UUID | FOREIGN KEY, NULLABLE | Current league |
 | `name` | VARCHAR | NOT NULL | Team name |
 | `logo_url` | VARCHAR | DEFAULT '' | Team logo image URL |
 | `jersey_color_primary` | VARCHAR | DEFAULT '#FF0000' | Primary jersey color (hex) |
 | `jersey_color_secondary` | VARCHAR | DEFAULT '#FFFFFF' | Secondary jersey color (hex) |
-| `formation` | VARCHAR | DEFAULT '4-4-2' | Default formation |
-| `home_stadium` | VARCHAR | DEFAULT 'Home Stadium' | Stadium name |
-| `level` | INTEGER | DEFAULT 1 | Team level/experience |
-| `wins` | INTEGER | DEFAULT 0 | Season wins |
-| `draws` | INTEGER | DEFAULT 0 | Season draws |
-| `losses` | INTEGER | DEFAULT 0 | Season losses |
-| `points` | INTEGER | DEFAULT 0 | League points |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 | `deleted_at` | TIMESTAMPTZ | NULLABLE | Soft delete timestamp |
 
+**Indexes:**
+- `IDX_team_league` - Index on league_id
+
 **Relations:**
 - One-to-One with `User`
-- One-to-Many with `TeamPlayer`
+- Many-to-One with `League`
+- One-to-Many with `Player`
 - One-to-Many with `Match` (as home_team)
 - One-to-Many with `Match` (as away_team)
-
----
-
-#### TeamPlayer Table (New - Junction)
-Links players to teams for squad management.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique identifier |
-| `team_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Team |
-| `player_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Player |
-| `position_in_squad` | VARCHAR | DEFAULT 'reserve' | starter, substitute, reserve |
-| `jersey_number` | INTEGER | CHECK (1-99) | Player's jersey number |
-| `joined_date` | DATE | DEFAULT NOW() | When player joined team |
-| `salary` | INTEGER | DEFAULT 1000 | Weekly/monthly wage |
-| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
-
-**Unique Constraints:**
-- `UQ_team_player` - Unique (team_id, player_id)
-- `UQ_team_jersey` - Unique (team_id, jersey_number)
-
-**Relations:**
-- Many-to-One with `Team`
-- Many-to-One with `Player`
 
 ---
 
@@ -289,23 +311,6 @@ Tracks player transfers between teams.
 
 ---
 
-#### League Table (New)
-Represents a competition/league.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique league identifier |
-| `name` | VARCHAR | NOT NULL | League name (e.g., "Premier League") |
-| `season` | VARCHAR | NOT NULL | Season (e.g., "2024-25") |
-| `status` | VARCHAR | DEFAULT 'active' | active, completed |
-| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
-
-**Relations:**
-- One-to-Many with `LeagueStanding`
-
----
-
 #### LeagueStanding Table (New)
 Tracks team positions in a league.
 
@@ -345,7 +350,8 @@ ManagerFinance
 └── 1:1 → User
 
 Team
-├── 1:N → TeamPlayer (squad)
+├── N:1 → League
+├── 1:N → Player
 ├── 1:N → Match (as home_team)
 ├── 1:N → Match (as away_team)
 ├── 1:N → Transfer (from_team)
@@ -353,7 +359,7 @@ Team
 └── 1:N → LeagueStanding
 
 Player
-├── N:M → Team (through TeamPlayer)
+├── N:1 → Team
 ├── 1:N → MatchEvent
 └── 1:N → Transfer
 
@@ -363,6 +369,7 @@ Match
 └── 1:N → MatchEvent
 
 League
+├── 1:N → Team
 └── 1:N → LeagueStanding
 ```
 
@@ -372,7 +379,7 @@ League
 
 - ✅ **Implemented**: User (enhanced), Player, Session
 - 🔄 **In Progress**: None
-- 📋 **Planned**: ManagerFinance, Team, TeamPlayer, Match, MatchEvent, Transfer, League, LeagueStanding
+- 📋 **Planned**: ManagerFinance, League, Team, Match, MatchEvent, Transfer, LeagueStanding
 
 ---
 
@@ -388,4 +395,4 @@ League
 ---
 
 **Last Updated**: 2025-11-27
-**Version**: 1.0.0
+**Version**: 1.1.0

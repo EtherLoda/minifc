@@ -50,7 +50,6 @@ describe('UserController', () => {
         email: 'mail@example.com',
         password: 'password',
         bio: 'bio',
-        image: 'image',
       } as CreateUserReqDto;
 
       const userResDto = new UserResDto();
@@ -58,8 +57,9 @@ describe('UserController', () => {
       userResDto.username = 'john';
       userResDto.email = 'mail@example.com';
       userResDto.bio = 'bio';
-      userResDto.image = 'image';
-      userResDto.posts = [];
+      userResDto.avatar = 'avatar.png';
+      userResDto.nickname = 'Johnny';
+      userResDto.supporterLevel = 1;
       userResDto.createdAt = new Date();
       userResDto.updatedAt = new Date();
 
@@ -89,7 +89,6 @@ describe('UserController', () => {
           email: 'mail@example.com',
           password: 'password',
           bio: 'bio',
-          image: 'image',
         });
       });
 
@@ -162,26 +161,7 @@ describe('UserController', () => {
         expect(errors.length).toEqual(0);
       });
 
-      it('should fail with empty image', async () => {
-        createUserReqDto.image = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          minLength: 'image must be longer than or equal to 1 characters',
-        });
-      });
 
-      it('should success with image is null', async () => {
-        createUserReqDto.image = null;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-
-      it('should success with image is undefined', async () => {
-        createUserReqDto.image = undefined;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
     });
   });
 
@@ -195,8 +175,9 @@ describe('UserController', () => {
       userResDto.username = 'john';
       userResDto.email = 'mail@example.com';
       userResDto.bio = 'bio';
-      userResDto.image = 'image';
-      userResDto.posts = [];
+      userResDto.avatar = 'avatar.png';
+      userResDto.nickname = 'Johnny';
+      userResDto.supporterLevel = 1;
       userResDto.createdAt = new Date();
       userResDto.updatedAt = new Date();
 

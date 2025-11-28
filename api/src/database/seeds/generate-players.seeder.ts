@@ -30,7 +30,7 @@ export class GeneratePlayersSeeder implements Seeder {
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
                 isGoalkeeper,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}${lastName}`,
+                appearance: this.generateRandomAppearance(),
                 attributes: this.generateRandomAttributes(isGoalkeeper),
             });
 
@@ -38,6 +38,22 @@ export class GeneratePlayersSeeder implements Seeder {
         }
 
         console.log(`Generated ${count} random players`);
+    }
+
+    private generateRandomAppearance(): Record<string, any> {
+        const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        return {
+            skinTone: randInt(1, 6),
+            hairStyle: randInt(1, 10),
+            hairColor: randInt(1, 8),
+            facialHair: randInt(0, 5),
+            accessories: {
+                headband: Math.random() < 0.15,
+                wristband: Math.random() < 0.3,
+                captainBand: Math.random() < 0.05,
+            },
+        };
     }
 
     private generateRandomAttributes(isGoalkeeper: boolean): Record<string, any> {

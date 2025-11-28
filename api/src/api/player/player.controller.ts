@@ -19,7 +19,10 @@ import { UpdatePlayerReqDto } from './dto/update-player.req.dto';
 import { PlayerService } from './player.service';
 
 @ApiTags('Players')
-@Controller('players')
+@Controller({
+    path: 'players',
+    version: '1',
+})
 export class PlayerController {
     constructor(private readonly playerService: PlayerService) { }
 

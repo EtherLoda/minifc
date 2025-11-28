@@ -4,6 +4,7 @@ import {
     StringField,
     StringFieldOptional,
     UUIDField,
+    UUIDFieldOptional,
 } from '@/decorators/field.decorators';
 import { Exclude, Expose } from 'class-transformer';
 
@@ -13,6 +14,10 @@ export class PlayerResDto {
     @Expose()
     id: string;
 
+    @UUIDFieldOptional()
+    @Expose()
+    teamId?: string | null;
+
     @StringField()
     @Expose()
     name: string;
@@ -21,9 +26,8 @@ export class PlayerResDto {
     @Expose()
     birthday?: Date;
 
-    @StringField()
     @Expose()
-    avatar: string;
+    appearance: Record<string, any>;
 
     @StringFieldOptional()
     @Expose()

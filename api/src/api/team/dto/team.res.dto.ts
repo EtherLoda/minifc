@@ -1,0 +1,30 @@
+import { Expose } from 'class-transformer';
+
+export class TeamResDto {
+    @Expose()
+    id: string;
+
+    @Expose()
+    userId: string;
+
+    @Expose()
+    leagueId: string | null;
+
+    @Expose()
+    name: string;
+
+    @Expose()
+    logoUrl: string;
+
+    @Expose()
+    jerseyColorPrimary: string;
+
+    @Expose()
+    jerseyColorSecondary: string;
+
+    @Expose()
+    createdAt: Date;
+
+    @Expose()
+    updatedAt: Date;
+}

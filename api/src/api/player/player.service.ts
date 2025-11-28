@@ -42,8 +42,9 @@ export class PlayerService {
     async create(reqDto: CreatePlayerReqDto): Promise<PlayerResDto> {
         const player = new PlayerEntity({
             name: reqDto.name,
+            teamId: reqDto.teamId,
             birthday: reqDto.birthday,
-            avatar: reqDto.avatar,
+            appearance: reqDto.appearance || this.generateRandomAppearance(),
             position: reqDto.position,
             isGoalkeeper: reqDto.isGoalkeeper,
             attributes: reqDto.attributes || {},
@@ -59,8 +60,14 @@ export class PlayerService {
         const player = await PlayerEntity.findOneByOrFail({ id });
 
         if (reqDto.name) player.name = reqDto.name;
+        if (reqDto.teamId !== undefined) player.teamId = reqDto.teamId;
         if (reqDto.birthday) player.birthday = reqDto.birthday;
-        if (reqDto.avatar) player.avatar = reqDto.avatar;
+        if (reqDto.appearance) {
+            player.appearance = {
+                ...player.appearance,
+                ...reqDto.appearance,
+            };
+        }
         if (reqDto.position) player.position = reqDto.position;
         if (reqDto.isGoalkeeper !== undefined) player.isGoalkeeper = reqDto.isGoalkeeper;
         if (reqDto.onTransfer !== undefined) player.onTransfer = reqDto.onTransfer;
@@ -105,7 +112,7 @@ export class PlayerService {
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
                 isGoalkeeper,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}${lastName}`,
+                appearance: this.generateRandomAppearance(),
                 attributes: this.generateRandomAttributes(isGoalkeeper),
             });
 
@@ -163,12 +170,29 @@ export class PlayerService {
         };
     }
 
+    private generateRandomAppearance(): Record<string, any> {
+        const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        return {
+            skinTone: randInt(1, 6),
+            hairStyle: randInt(1, 10),
+            hairColor: randInt(1, 8),
+            facialHair: randInt(0, 5),
+            accessories: {
+                headband: Math.random() < 0.15,
+                wristband: Math.random() < 0.3,
+                captainBand: Math.random() < 0.05,
+            },
+        };
+    }
+
     private mapToResDto(player: PlayerEntity): PlayerResDto {
         return plainToInstance(PlayerResDto, {
             id: player.id,
+            teamId: player.teamId,
             name: player.name,
             birthday: player.birthday,
-            avatar: player.avatar,
+            appearance: player.appearance,
             position: player.position,
             isGoalkeeper: player.isGoalkeeper,
             onTransfer: player.onTransfer,

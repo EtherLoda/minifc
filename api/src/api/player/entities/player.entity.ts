@@ -1,9 +1,12 @@
 import { Uuid } from '@/common/types/common.type';
 import { AbstractEntity } from '@/database/entities/abstract.entity';
+import { TeamEntity } from '@/api/team/entities/team.entity';
 import {
     Column,
     DeleteDateColumn,
     Entity,
+    JoinColumn,
+    ManyToOne,
     PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -17,14 +20,21 @@ export class PlayerEntity extends AbstractEntity {
     @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_player_id' })
     id!: Uuid;
 
+    @Column({ name: 'team_id', type: 'uuid', nullable: true })
+    teamId?: string | null;
+
+    @ManyToOne(() => TeamEntity)
+    @JoinColumn({ name: 'team_id' })
+    team?: TeamEntity;
+
     @Column()
     name!: string;
 
     @Column({ nullable: true })
     birthday?: Date;
 
-    @Column({ default: '' })
-    avatar!: string;
+    @Column({ type: 'jsonb', default: {} })
+    appearance!: Record<string, any>;
 
     @Column({ nullable: true })
     position?: string;
