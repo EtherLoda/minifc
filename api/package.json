@@ -1,8 +1,8 @@
 {
-  "name": "minifc-api",
+  "name": "goalxi-api",
   "version": "0.0.1",
-  "description": "Mini-FC Football Manager Game API",
-  "author": "Mini-FC Team",
+  "description": "GoalXI Football Manager Game API",
+  "author": "GoalXI Team",
   "private": true,
   "license": "MIT",
   "scripts": {

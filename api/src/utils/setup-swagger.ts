@@ -9,9 +9,9 @@ function setupSwagger(app: INestApplication) {
 
   const config = new DocumentBuilder()
     .setTitle(appName)
-    .setDescription('A boilerplate project')
+    .setDescription('GoalXI Football Manager Game API')
     .setVersion('1.0')
-    .setContact('Company Name', 'https://example.com', 'contact@company.com')
+    .setContact('GoalXI Team', 'https://goalxi.com', 'contact@goalxi.com')
     .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'Api-Key', in: 'header' }, 'Api-Key')
     .addServer(

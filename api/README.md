@@ -1,10 +1,10 @@
-# Mini-FC API
+# GoalXI API
 
-Backend RESTful API for the Mini-FC football manager web game.
+Backend RESTful API for the GoalXI football manager web game.
 
 ## Description
 
-Mini-FC is a pixel-art football manager game where you can create, manage, and customize your own team of players. This API provides the backend services for player management, authentication, and game data.
+GoalXI is a pixel-art football manager game where you can create, manage, and customize your own team of players. This API provides the backend services for player management, authentication, and game data.
 
 ## Tech Stack
 
@@ -70,7 +70,7 @@ If you prefer to run PostgreSQL and Redis locally:
    ```env
    DATABASE_HOST=localhost
    DATABASE_PORT=5432
-   DATABASE_NAME=minifc
+   DATABASE_NAME=goalxi
    REDIS_HOST=localhost
    REDIS_PORT=6379
    ```
@@ -178,7 +178,7 @@ API_PREFIX=api
 # Database
 DATABASE_HOST=localhost
 DATABASE_PORT=25432
-DATABASE_NAME=minifc
+DATABASE_NAME=goalxi
 DATABASE_USERNAME=postgres
 DATABASE_PASSWORD=postgres
 

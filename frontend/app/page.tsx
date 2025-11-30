@@ -63,11 +63,11 @@ export default function Home() {
         <header className={`flex flex-col md:flex-row justify-between items-end backdrop-blur-md border rounded-2xl p-6 mb-12 transition-all duration-300 ${headerBg}`}>
           <div className="mb-4 md:mb-0">
             <h1 className={`text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${titleGradient}`}>
-              CYBER<span className={isDark ? 'text-white' : 'text-slate-800'}>PITCH</span>
+              Goal<span className={isDark ? 'text-white' : 'text-slate-800'}>XI</span>
             </h1>
             <div className={`flex items-center gap-2 mt-2 text-xs tracking-[0.3em] pl-2 ${subText}`}>
               <span className={`w-2 h-2 rounded-full animate-ping ${isDark ? 'bg-emerald-500' : 'bg-emerald-500'}`}></span>
-              SYSTEM ONLINE // TURF LINK ESTABLISHED
+              SYSTEM ONLINE // SQUAD MANAGEMENT ACTIVE
             </div>
           </div>
 
@@ -131,8 +131,8 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-4">
                   <span className={`text-[10px] font-bold px-3 py-1 rounded-lg border ${isDark ? 'text-emerald-700 bg-emerald-950/30 border-emerald-900/30' : 'text-emerald-700 bg-emerald-50 border-emerald-100'}`}>UNIT_0{index + 1}</span>
                   <span className={`text-[10px] font-bold px-3 py-1 rounded-lg border ${player.position === 'GK' ? (isDark ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 'bg-yellow-50 text-yellow-600 border-yellow-200') :
-                      player.position === 'FWD' ? (isDark ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-200') :
-                        (isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-600 border-emerald-200')
+                    player.position === 'FWD' ? (isDark ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-200') :
+                      (isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-600 border-emerald-200')
                     }`}>
                     {player.position}
                   </span>
