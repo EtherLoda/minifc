@@ -1,50 +1,86 @@
 import { TeamEntity } from './team.entity';
+import { LeagueEntity } from './league.entity';
 import { AbstractEntity } from './abstract.entity';
 import {
     Column,
     Entity,
+    Index,
     JoinColumn,
     ManyToOne,
     PrimaryGeneratedColumn,
 } from 'typeorm';
 
+export enum MatchStatus {
+    SCHEDULED = 'scheduled',
+    TACTICS_LOCKED = 'tactics_locked',
+    IN_PROGRESS = 'in_progress',
+    COMPLETED = 'completed',
+    CANCELLED = 'cancelled',
+}
+
+export enum MatchType {
+    LEAGUE = 'league',
+    CUP = 'cup',
+    TOURNAMENT = 'tournament',
+    FRIENDLY = 'friendly',
+    NATIONAL_TEAM = 'national_team',
+}
+
 @Entity('match')
+@Index(['leagueId', 'season', 'week'])
+@Index(['homeTeamId'])
+@Index(['awayTeamId'])
 export class MatchEntity extends AbstractEntity {
     @PrimaryGeneratedColumn('uuid')
-    id: string;
+    id!: string;
+
+    @Column({ name: 'league_id', type: 'uuid' })
+    leagueId!: string;
+
+    @ManyToOne(() => LeagueEntity)
+    @JoinColumn({ name: 'league_id' })
+    league?: LeagueEntity;
+
+    @Column({ type: 'int' })
+    season!: number;
+
+    @Column({ type: 'int' })
+    week!: number;
+
+    @Column({ name: 'home_team_id', type: 'uuid' })
+    homeTeamId!: string;
 
     @ManyToOne(() => TeamEntity, { eager: true })
     @JoinColumn({ name: 'home_team_id' })
-    homeTeam: TeamEntity;
+    homeTeam?: TeamEntity;
 
-    @Column({ name: 'home_team_id' })
-    homeTeamId: string;
+    @Column({ name: 'away_team_id', type: 'uuid' })
+    awayTeamId!: string;
 
     @ManyToOne(() => TeamEntity, { eager: true })
     @JoinColumn({ name: 'away_team_id' })
-    awayTeam: TeamEntity;
+    awayTeam?: TeamEntity;
 
-    @Column({ name: 'away_team_id' })
-    awayTeamId: string;
+    @Column({ name: 'scheduled_at', type: 'timestamp' })
+    scheduledAt!: Date;
 
-    @Column({ name: 'home_score', default: 0 })
-    homeScore: number;
+    @Column({ type: 'varchar', length: 20, default: MatchStatus.SCHEDULED })
+    status!: MatchStatus;
 
-    @Column({ name: 'away_score', default: 0 })
-    awayScore: number;
+    @Column({ type: 'varchar', length: 30, default: MatchType.LEAGUE })
+    type!: MatchType;
 
-    @Column({ type: 'timestamptz', name: 'match_date' })
-    matchDate: Date;
+    @Column({ name: 'home_score', type: 'int', nullable: true })
+    homeScore?: number;
 
-    @Column({ default: 'scheduled' })
-    status: 'scheduled' | 'in_progress' | 'completed';
+    @Column({ name: 'away_score', type: 'int', nullable: true })
+    awayScore?: number;
 
-    @Column({ name: 'match_type', default: 'league' })
-    matchType: 'league' | 'cup' | 'friendly' | 'playoff';
+    @Column({ name: 'simulation_completed_at', type: 'timestamp', nullable: true })
+    simulationCompletedAt?: Date;
 
-    @Column({ nullable: true })
-    season: number;
-
-    @Column({ nullable: true, name: 'league_id' })
-    leagueId: string;
+    constructor(partial?: Partial<MatchEntity>) {
+        super();
+        Object.assign(this, partial);
+    }
 }

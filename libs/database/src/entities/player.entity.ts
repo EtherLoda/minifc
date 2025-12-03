@@ -31,6 +31,23 @@ export interface PlayerSkills {
     mental: Record<string, number>;
 }
 
+export interface CareerStats {
+    club: {
+        matches: number;
+        goals: number;
+        assists: number;
+        yellowCards: number;
+        redCards: number;
+    };
+    national?: {
+        matches: number;
+        goals: number;
+        assists: number;
+        yellowCards: number;
+        redCards: number;
+    };
+}
+
 @Entity('player')
 export class PlayerEntity extends AbstractEntity {
     constructor(data?: Partial<PlayerEntity>) {
@@ -120,6 +137,9 @@ export class PlayerEntity extends AbstractEntity {
 
     @Column({ type: 'float', default: 3.0 })
     stamina!: number;
+
+    @Column({ name: 'career_stats', type: 'jsonb', default: '{}' })
+    careerStats!: CareerStats;
 
     @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
     deletedAt?: Date;
