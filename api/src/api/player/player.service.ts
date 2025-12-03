@@ -8,7 +8,7 @@ import { CreatePlayerReqDto } from './dto/create-player.req.dto';
 import { ListPlayerReqDto } from './dto/list-player.req.dto';
 import { PlayerResDto } from './dto/player.res.dto';
 import { UpdatePlayerReqDto } from './dto/update-player.req.dto';
-import { PlayerEntity } from '@goalxi/database';
+import { PlayerEntity, PotentialTier, TrainingSlot, PlayerSkills } from '@goalxi/database';
 
 @Injectable()
 export class PlayerService {
@@ -40,14 +40,18 @@ export class PlayerService {
     }
 
     async create(reqDto: CreatePlayerReqDto): Promise<PlayerResDto> {
+        const [currentSkills, potentialSkills] = this.generateRandomSkills(reqDto.isGoalkeeper || false);
         const player = new PlayerEntity({
             name: reqDto.name,
             teamId: reqDto.teamId,
             birthday: reqDto.birthday,
             appearance: reqDto.appearance || this.generateRandomAppearance(),
-            position: reqDto.position,
             isGoalkeeper: reqDto.isGoalkeeper,
-            attributes: reqDto.attributes || {},
+            currentSkills,
+            potentialSkills,
+            potentialAbility: reqDto.potentialAbility,
+            potentialTier: reqDto.potentialTier,
+            trainingSlot: reqDto.trainingSlot,
         });
 
         await player.save();
@@ -68,15 +72,11 @@ export class PlayerService {
                 ...reqDto.appearance,
             };
         }
-        if (reqDto.position) player.position = reqDto.position;
         if (reqDto.isGoalkeeper !== undefined) player.isGoalkeeper = reqDto.isGoalkeeper;
         if (reqDto.onTransfer !== undefined) player.onTransfer = reqDto.onTransfer;
-        if (reqDto.attributes) {
-            player.attributes = {
-                ...player.attributes,
-                ...reqDto.attributes,
-            };
-        }
+        if (reqDto.potentialAbility !== undefined) player.potentialAbility = reqDto.potentialAbility;
+        if (reqDto.potentialTier) player.potentialTier = reqDto.potentialTier;
+        if (reqDto.trainingSlot) player.trainingSlot = reqDto.trainingSlot;
 
         await player.save();
 
@@ -109,11 +109,13 @@ export class PlayerService {
             const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
             const isGoalkeeper = Math.random() < 0.1; // 10% chance to be a GK
 
+            const [currentSkills, potentialSkills] = this.generateRandomSkills(isGoalkeeper);
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
                 isGoalkeeper,
                 appearance: this.generateRandomAppearance(),
-                attributes: this.generateRandomAttributes(isGoalkeeper),
+                currentSkills,
+                potentialSkills,
             });
 
             await player.save();
@@ -123,51 +125,73 @@ export class PlayerService {
         return players;
     }
 
-    private generateRandomAttributes(isGoalkeeper: boolean): Record<string, any> {
+    private generateRandomSkills(isGoalkeeper: boolean): [PlayerSkills, PlayerSkills] {
         const rand = (min: number, max: number) => Number((Math.random() * (max - min) + min).toFixed(2));
 
-        if (isGoalkeeper) {
-            return {
-                physical: {
-                    pace: rand(5, 15),
-                    strength: rand(10, 18),
-                    stamina: rand(10, 18),
-                },
-                technical: {
-                    reflexes: rand(10, 20),
-                    handling: rand(10, 20),
-                    distribution: rand(5, 18),
-                },
-                mental: {
-                    vision: rand(5, 15),
-                    positioning: rand(10, 20),
-                    awareness: rand(10, 20),
-                    composure: rand(10, 20),
-                    aggression: rand(5, 15),
-                },
-            };
-        }
+        // Helper to create attribute sets for each category
+        const createPhysical = () => ({
+            pace: rand(isGoalkeeper ? 5 : 10, 20),
+            strength: rand(5, 20),
+        });
 
-        return {
-            physical: {
-                pace: rand(10, 20),
-                strength: rand(5, 20),
-                stamina: rand(10, 20),
-            },
-            technical: {
-                finishing: rand(5, 20),
-                passing: rand(5, 20),
-                dribbling: rand(5, 20),
-                defending: rand(5, 20),
-            },
-            mental: {
-                vision: rand(5, 20),
-                positioning: rand(5, 20),
-                awareness: rand(5, 20),
-                composure: rand(5, 20),
-                aggression: rand(5, 20),
-            },
+        const createTechnicalGK = () => ({
+            reflexes: rand(10, 20),
+            handling: rand(10, 20),
+            distribution: rand(5, 18),
+        });
+
+        const createTechnicalOutfield = () => ({
+            finishing: rand(5, 20),
+            passing: rand(5, 20),
+            dribbling: rand(5, 20),
+            defending: rand(5, 20),
+        });
+
+        const createMental = () => ({
+            vision: rand(5, 20),
+            positioning: rand(5, 20),
+            awareness: rand(5, 20),
+            composure: rand(5, 20),
+            aggression: rand(5, 20),
+        });
+
+        const currentPhysical = createPhysical();
+        const currentTechnical = isGoalkeeper ? createTechnicalGK() : createTechnicalOutfield();
+        const currentMental = createMental();
+
+        // Potential values start as a copy of current then possibly increase
+        const potentialPhysical = { ...currentPhysical };
+        const potentialTechnical = { ...currentTechnical };
+        const potentialMental = { ...currentMental };
+
+        // Randomly increase potential values
+        (Object.keys(potentialPhysical) as Array<keyof typeof potentialPhysical>).forEach(key => {
+            potentialPhysical[key] = Math.max(potentialPhysical[key], currentPhysical[key] + rand(0, 5));
+        });
+
+        const pTech = potentialTechnical as Record<string, number>;
+        const cTech = currentTechnical as Record<string, number>;
+        Object.keys(pTech).forEach(key => {
+            pTech[key] = Math.max(pTech[key], cTech[key] + rand(0, 5));
+        });
+
+        (Object.keys(potentialMental) as Array<keyof typeof potentialMental>).forEach(key => {
+            potentialMental[key] = Math.max(potentialMental[key], currentMental[key] + rand(0, 5));
+        });
+
+        const currentSkills: PlayerSkills = {
+            physical: currentPhysical,
+            technical: currentTechnical as Record<string, number>,
+            mental: currentMental,
         };
+
+        const potentialSkills: PlayerSkills = {
+            physical: potentialPhysical,
+            technical: potentialTechnical as Record<string, number>,
+            mental: potentialMental,
+        };
+
+        return [currentSkills, potentialSkills];
     }
 
     private generateRandomAppearance(): Record<string, any> {
@@ -192,11 +216,19 @@ export class PlayerService {
             teamId: player.teamId,
             name: player.name,
             birthday: player.birthday,
+            isYouth: player.isYouth,
+            age: player.age,
             appearance: player.appearance,
-            position: player.position,
             isGoalkeeper: player.isGoalkeeper,
             onTransfer: player.onTransfer,
-            attributes: player.attributes,
+            currentSkills: player.currentSkills,
+            potentialSkills: player.potentialSkills,
+            potentialAbility: player.potentialAbility,
+            potentialTier: player.potentialTier,
+            trainingSlot: player.trainingSlot,
+            experience: player.experience,
+            form: player.form,
+            stamina: player.stamina,
             createdAt: player.createdAt,
             updatedAt: player.updatedAt,
         });

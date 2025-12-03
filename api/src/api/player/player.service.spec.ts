@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Uuid } from '@/common/types/common.type';
+import { Uuid } from '../../common/types/common.type';
 import { PlayerEntity } from '@goalxi/database';
 import { PlayerService } from './player.service';
 import { CreatePlayerReqDto } from './dto/create-player.req.dto';
@@ -222,15 +222,15 @@ describe('PlayerService', () => {
             const goalkeeper = result.find(p => p.isGoalkeeper);
 
             if (goalkeeper) {
-                expect(goalkeeper.attributes).toHaveProperty('physical');
-                expect(goalkeeper.attributes).toHaveProperty('technical');
-                expect(goalkeeper.attributes).toHaveProperty('mental');
+                expect(goalkeeper.currentSkills).toHaveProperty('physical');
+                expect(goalkeeper.currentSkills).toHaveProperty('technical');
+                expect(goalkeeper.currentSkills).toHaveProperty('mental');
 
                 // Check GK specific technical attributes
-                expect(goalkeeper.attributes.technical).toHaveProperty('reflexes');
-                expect(goalkeeper.attributes.technical).toHaveProperty('handling');
-                expect(goalkeeper.attributes.technical).toHaveProperty('distribution');
-                expect(goalkeeper.attributes.technical).not.toHaveProperty('finishing');
+                expect(goalkeeper.currentSkills.technical).toHaveProperty('reflexes');
+                expect(goalkeeper.currentSkills.technical).toHaveProperty('handling');
+                expect(goalkeeper.currentSkills.technical).toHaveProperty('distribution');
+                expect(goalkeeper.currentSkills.technical).not.toHaveProperty('finishing');
             }
         });
 
@@ -248,16 +248,16 @@ describe('PlayerService', () => {
             const outfieldPlayer = result.find(p => !p.isGoalkeeper);
 
             if (outfieldPlayer) {
-                expect(outfieldPlayer.attributes).toHaveProperty('physical');
-                expect(outfieldPlayer.attributes).toHaveProperty('technical');
-                expect(outfieldPlayer.attributes).toHaveProperty('mental');
+                expect(outfieldPlayer.currentSkills).toHaveProperty('physical');
+                expect(outfieldPlayer.currentSkills).toHaveProperty('technical');
+                expect(outfieldPlayer.currentSkills).toHaveProperty('mental');
 
                 // Check Outfield specific technical attributes
-                expect(outfieldPlayer.attributes.technical).toHaveProperty('finishing');
-                expect(outfieldPlayer.attributes.technical).toHaveProperty('passing');
-                expect(outfieldPlayer.attributes.technical).toHaveProperty('dribbling');
-                expect(outfieldPlayer.attributes.technical).toHaveProperty('defending');
-                expect(outfieldPlayer.attributes.technical).not.toHaveProperty('reflexes');
+                expect(outfieldPlayer.currentSkills.technical).toHaveProperty('finishing');
+                expect(outfieldPlayer.currentSkills.technical).toHaveProperty('passing');
+                expect(outfieldPlayer.currentSkills.technical).toHaveProperty('dribbling');
+                expect(outfieldPlayer.currentSkills.technical).toHaveProperty('defending');
+                expect(outfieldPlayer.currentSkills.technical).not.toHaveProperty('reflexes');
             }
         });
     });

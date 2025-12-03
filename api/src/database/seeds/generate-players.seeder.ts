@@ -1,4 +1,4 @@
-import { PlayerEntity } from '@goalxi/database';
+import { PlayerEntity, GAME_SETTINGS } from '@goalxi/database';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
 
@@ -26,12 +26,21 @@ export class GeneratePlayersSeeder implements Seeder {
             const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
             const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
             const isGoalkeeper = Math.random() < 0.1; // 10% chance to be a GK
+            const [currentSkills, potentialSkills] = this.generateRandomSkills(isGoalkeeper);
+
+            const age = Math.floor(Math.random() * (35 - 17 + 1)) + 17; // Random age 17-35
+            // Add random offset within the year so they aren't all born exactly on the season boundary
+            const randomDaysOffset = Math.floor(Math.random() * GAME_SETTINGS.DAYS_PER_YEAR);
+            const birthday = new Date(Date.now() - (age * GAME_SETTINGS.MS_PER_YEAR) - (randomDaysOffset * 24 * 60 * 60 * 1000));
 
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
                 isGoalkeeper,
+                birthday,
+                isYouth: age <= 18,
                 appearance: this.generateRandomAppearance(),
-                attributes: this.generateRandomAttributes(isGoalkeeper),
+                currentSkills,
+                potentialSkills,
             });
 
             await repository.save(player);
@@ -56,50 +65,52 @@ export class GeneratePlayersSeeder implements Seeder {
         };
     }
 
-    private generateRandomAttributes(isGoalkeeper: boolean): Record<string, any> {
+    private generateRandomSkills(isGoalkeeper: boolean): [any, any] {
         const rand = (min: number, max: number) => Number((Math.random() * (max - min) + min).toFixed(2));
 
-        if (isGoalkeeper) {
-            return {
-                physical: {
-                    pace: rand(5, 15),
-                    strength: rand(10, 18),
-                    stamina: rand(10, 18),
-                },
-                technical: {
-                    reflexes: rand(10, 20),
-                    handling: rand(10, 20),
-                    distribution: rand(5, 18),
-                },
-                mental: {
-                    vision: rand(5, 15),
-                    positioning: rand(10, 20),
-                    awareness: rand(10, 20),
-                    composure: rand(10, 20),
-                    aggression: rand(5, 15),
-                },
-            };
-        }
+        const createPhysical = () => ({
+            pace: rand(isGoalkeeper ? 5 : 10, 20),
+            strength: rand(5, 20),
+        });
 
-        return {
-            physical: {
-                pace: rand(10, 20),
-                strength: rand(5, 20),
-                stamina: rand(10, 20),
-            },
-            technical: {
-                finishing: rand(5, 20),
-                passing: rand(5, 20),
-                dribbling: rand(5, 20),
-                defending: rand(5, 20),
-            },
-            mental: {
-                vision: rand(5, 20),
-                positioning: rand(5, 20),
-                awareness: rand(5, 20),
-                composure: rand(5, 20),
-                aggression: rand(5, 20),
-            },
+        const createTechnicalGK = () => ({
+            reflexes: rand(10, 20),
+            handling: rand(10, 20),
+            distribution: rand(5, 18),
+        });
+
+        const createTechnicalOutfield = () => ({
+            finishing: rand(5, 20),
+            passing: rand(5, 20),
+            dribbling: rand(5, 20),
+            defending: rand(5, 20),
+        });
+
+        const createMental = () => ({
+            vision: rand(5, 20),
+            positioning: rand(5, 20),
+            awareness: rand(5, 20),
+            composure: rand(5, 20),
+            aggression: rand(5, 20),
+        });
+
+        const currentPhysical = createPhysical();
+        const currentTechnical = isGoalkeeper ? createTechnicalGK() : createTechnicalOutfield();
+        const currentMental = createMental();
+
+        const currentSkills = {
+            physical: currentPhysical,
+            technical: currentTechnical,
+            mental: currentMental,
         };
+
+        // For simplicity in this seeder, potential is just slightly higher than current
+        const potentialSkills = {
+            physical: { ...currentPhysical },
+            technical: { ...currentTechnical },
+            mental: { ...currentMental },
+        };
+
+        return [currentSkills, potentialSkills];
     }
 }

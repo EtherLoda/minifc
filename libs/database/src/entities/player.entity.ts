@@ -9,6 +9,27 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
 } from 'typeorm';
+import { GAME_SETTINGS } from '../constants/game.constants';
+
+export enum PotentialTier {
+    LOW = 'LOW',
+    REGULAR = 'REGULAR',
+    HIGH_PRO = 'HIGH_PRO',
+    ELITE = 'ELITE',
+    LEGEND = 'LEGEND',
+}
+
+export enum TrainingSlot {
+    GENIUS = 'GENIUS',
+    REGULAR = 'REGULAR',
+    NONE = 'NONE',
+}
+
+export interface PlayerSkills {
+    physical: Record<string, number>;
+    technical: Record<string, number>;
+    mental: Record<string, number>;
+}
 
 @Entity('player')
 export class PlayerEntity extends AbstractEntity {
@@ -30,14 +51,35 @@ export class PlayerEntity extends AbstractEntity {
     @Column()
     name!: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'date', nullable: true })
     birthday?: Date;
+
+    @Column({ name: 'is_youth', default: false })
+    isYouth!: boolean;
+
+    get age(): number {
+        if (!this.birthday) return 0;
+        const diff = Date.now() - new Date(this.birthday).getTime();
+        return Math.floor(diff / GAME_SETTINGS.MS_PER_YEAR);
+    }
+
+    /**
+     * Returns exact age as a tuple [years, days]
+     */
+    getExactAge(): [number, number] {
+        if (!this.birthday) return [0, 0];
+        const now = new Date();
+        const diffMs = now.getTime() - this.birthday.getTime();
+        const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const years = Math.floor(totalDays / GAME_SETTINGS.DAYS_PER_YEAR);
+        const days = totalDays % GAME_SETTINGS.DAYS_PER_YEAR;
+        return [years, days];
+    }
 
     @Column({ type: 'jsonb', default: {} })
     appearance!: Record<string, any>;
 
-    @Column({ nullable: true })
-    position?: string;
+
 
     @Column({ name: 'is_goalkeeper', default: false })
     isGoalkeeper!: boolean;
@@ -45,14 +87,39 @@ export class PlayerEntity extends AbstractEntity {
     @Column({ name: 'on_transfer', default: false })
     onTransfer!: boolean;
 
-    @Column({ type: 'jsonb' })
-    attributes!: Record<string, any>;
+    @Column({ name: 'current_skills', type: 'jsonb' })
+    currentSkills!: PlayerSkills;
+
+    @Column({ name: 'potential_skills', type: 'jsonb' })
+    potentialSkills!: PlayerSkills;
+
+    @Column({ name: 'potential_ability', type: 'int', default: 50 })
+    potentialAbility!: number;
+
+    @Column({
+        name: 'potential_tier',
+        type: 'enum',
+        enum: PotentialTier,
+        default: PotentialTier.LOW,
+    })
+    potentialTier!: PotentialTier;
+
+    @Column({
+        name: 'training_slot',
+        type: 'enum',
+        enum: TrainingSlot,
+        default: TrainingSlot.REGULAR,
+    })
+    trainingSlot!: TrainingSlot;
 
     @Column({ type: 'float', default: 0.0 })
     experience!: number;
 
-    @Column({ type: 'integer', default: 5 })
+    @Column({ type: 'float', default: 3.0 })
     form!: number;
+
+    @Column({ type: 'float', default: 3.0 })
+    stamina!: number;
 
     @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
     deletedAt?: Date;

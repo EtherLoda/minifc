@@ -32,26 +32,10 @@ Represents a football manager/user account.
 - One-to-One with `Team`
 
 ---
-
-### Player Table
-Represents a football player with comprehensive attributes.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique player identifier |
-| `team_id` | UUID | FOREIGN KEY, NULLABLE | Reference to Team (Many-to-One) |
-| `name` | VARCHAR | NOT NULL | Player's full name |
-| `birthday` | DATE | NULLABLE | Player's date of birth |
-| `appearance` | JSONB | NOT NULL | Player appearance configuration (see structure below) |
-| `position` | VARCHAR | NULLABLE | Player position (GK, DEF, MID, FWD) - set by manager |
-| `is_goalkeeper` | BOOLEAN | DEFAULT false | Whether this player is a goalkeeper |
-| `on_transfer` | BOOLEAN | DEFAULT false | Whether player is on transfer list |
-| `attributes` | JSONB | NOT NULL | Player attributes (see structure below) |
-| `experience` | FLOAT | DEFAULT 0.0 | Player experience points (0.0+) |
-| `form` | INTEGER | DEFAULT 5 | Current form rating (1-10) |
-| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 | `deleted_at` | TIMESTAMPTZ | NULLABLE | Soft delete timestamp |
+
+**Note**: Age is calculated from `birthday` field. Season length is 16 weeks = 1 year (configured in settings).
 
 **Appearance Structure (JSONB):**
 
@@ -89,23 +73,43 @@ The appearance object defines the visual characteristics of a player for fronten
 For **Outfield Players** (`is_goalkeeper = false`):
 ```json
 {
-  "physical": {
-    "pace": 15.50,        // 速度 (0-20)
-    "strength": 12.30,    // 强壮 (0-20)
-    "stamina": 14.80      // 体能 (0-20)
+  "current": {
+    "physical": {
+      "pace": 15.50,        // 速度 (0-20)
+      "strength": 12.30     // 强壮 (0-20)
+    },
+    "technical": {
+      "finishing": 13.20,   // 射术 (0-20)
+      "passing": 16.40,     // 传球 (0-20)
+      "dribbling": 15.10,   // 盘带 (0-20)
+      "defending": 8.50     // 防守 (0-20)
+    },
+    "mental": {
+      "vision": 14.70,      // 视野 (0-20)
+      "positioning": 13.90, // 跑位 (0-20)
+      "awareness": 12.60,   // 防守站位 (0-20)
+      "composure": 15.30,   // 决断 (0-20)
+      "aggression": 11.20   // 侵略性 (0-20)
+    }
   },
-  "technical": {
-    "finishing": 13.20,   // 射术 (0-20)
-    "passing": 16.40,     // 传球 (0-20)
-    "dribbling": 15.10,   // 盘带 (0-20)
-    "defending": 8.50     // 防守 (0-20)
-  },
-  "mental": {
-    "vision": 14.70,      // 视野 (0-20)
-    "positioning": 13.90, // 跑位 (0-20)
-    "awareness": 12.60,   // 防守站位 (0-20)
-    "composure": 15.30,   // 决断 (0-20)
-    "aggression": 11.20   // 侵略性 (0-20)
+  "potential": {
+    "physical": {
+      "pace": 18.00,
+      "strength": 15.00
+    },
+    "technical": {
+      "finishing": 17.00,
+      "passing": 19.00,
+      "dribbling": 18.00,
+      "defending": 10.00
+    },
+    "mental": {
+      "vision": 17.00,
+      "positioning": 16.00,
+      "awareness": 15.00,
+      "composure": 18.00,
+      "aggression": 13.00
+    }
   }
 }
 ```
@@ -113,25 +117,46 @@ For **Outfield Players** (`is_goalkeeper = false`):
 For **Goalkeepers** (`is_goalkeeper = true`):
 ```json
 {
-  "physical": {
-    "pace": 8.50,         // 速度 (0-20)
-    "strength": 12.30,    // 强壮 (0-20)
-    "stamina": 14.80      // 体能 (0-20)
+  "current": {
+    "physical": {
+      "pace": 8.50,         // 速度 (0-20)
+      "strength": 12.30     // 强壮 (0-20)
+    },
+    "technical": {
+      "reflexes": 17.20,    // 反应 (0-20)
+      "handling": 16.50,    // 手控 (0-20)
+      "distribution": 13.40 // 出球 (0-20)
+    },
+    "mental": {
+      "vision": 12.10,      // 视野 (0-20)
+      "positioning": 15.80, // 站位 (0-20)
+      "awareness": 14.30,   // 意识 (0-20)
+      "composure": 16.20,   // 决断 (0-20)
+      "aggression": 9.50    // 侵略性 (0-20)
+    }
   },
-  "technical": {
-    "reflexes": 17.20,    // 反应 (0-20)
-    "handling": 16.50,    // 手控 (0-20)
-    "distribution": 13.40 // 出球 (0-20)
-  },
-  "mental": {
-    "vision": 12.10,      // 视野 (0-20)
-    "positioning": 15.80, // 站位 (0-20)
-    "awareness": 14.30,   // 意识 (0-20)
-    "composure": 16.20,   // 决断 (0-20)
-    "aggression": 9.50    // 侵略性 (0-20)
+  "potential": {
+    "physical": {
+      "pace": 10.00,
+      "strength": 15.00
+    },
+    "technical": {
+      "reflexes": 19.00,
+      "handling": 19.00,
+      "distribution": 16.00
+    },
+    "mental": {
+      "vision": 14.00,
+      "positioning": 18.00,
+      "awareness": 17.00,
+      "composure": 19.00,
+      "aggression": 11.00
+    }
   }
 }
 ```
+
+**Note**: Stamina is now a separate field (not in attributes). Form and stamina are both float values (1.0-5.0).
 
 **Note**: 
 - All attribute values are stored as decimals (0.00-20.00) with 2 decimal precision

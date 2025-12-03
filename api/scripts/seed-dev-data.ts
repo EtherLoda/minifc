@@ -6,6 +6,10 @@ import {
     LeagueEntity,
     PlayerEntity,
     FinanceEntity,
+    PotentialTier,
+    TrainingSlot,
+    PlayerSkills,
+    GAME_SETTINGS,
 } from '@goalxi/database';
 import * as argon2 from 'argon2';
 
@@ -32,6 +36,11 @@ function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function randomFloat(min: number, max: number, decimals: number = 1): number {
+    const value = Math.random() * (max - min) + min;
+    return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
+
 function generatePlayerAppearance() {
     return {
         skinTone: randomInt(1, 6),
@@ -41,30 +50,103 @@ function generatePlayerAppearance() {
     };
 }
 
-function generatePlayerAttributes(position: string) {
+function generatePlayerPotential(): { tier: PotentialTier, ability: number } {
+    const rand = Math.random() * 100;
+    if (rand < 0.5) return { tier: PotentialTier.LEGEND, ability: randomInt(91, 99) };
+    if (rand < 5.0) return { tier: PotentialTier.ELITE, ability: randomInt(81, 90) };
+    if (rand < 20.0) return { tier: PotentialTier.HIGH_PRO, ability: randomInt(71, 80) };
+    if (rand < 55.0) return { tier: PotentialTier.REGULAR, ability: randomInt(56, 70) };
+    return { tier: PotentialTier.LOW, ability: randomInt(40, 55) };
+}
+
+function generatePlayerAttributes(position: string, potentialAbility: number, age: number): { current: PlayerSkills; potential: PlayerSkills } {
     const isGK = position === 'GK';
+    const targetPotentialAvg = potentialAbility / 5; // Map 0-100 PA to roughly 0-20 attributes
 
-    if (isGK) {
-        return {
-            diving: randomInt(60, 90),
-            handling: randomInt(60, 90),
-            kicking: randomInt(50, 80),
-            reflexes: randomInt(60, 90),
-            speed: randomInt(40, 70),
-            positioning: randomInt(60, 90),
-        };
-    }
-
-    return {
-        pace: randomInt(50, 95),
-        shooting: randomInt(50, 95),
-        passing: randomInt(50, 95),
-        dribbling: randomInt(50, 95),
-        defending: randomInt(50, 95),
-        physical: randomInt(50, 95),
-        stamina: randomInt(70, 99),
-        positioning: randomInt(50, 90),
+    // Define primary attributes per position for variance
+    const primaryAttrs: Record<string, string[]> = {
+        'GK': ['reflexes', 'handling', 'positioning'],
+        'LB': ['pace', 'defending', 'awareness'],
+        'RB': ['pace', 'defending', 'awareness'],
+        'CB': ['strength', 'defending', 'positioning', 'awareness'],
+        'LM': ['pace', 'dribbling', 'passing'],
+        'RM': ['pace', 'dribbling', 'passing'],
+        'CM': ['passing', 'vision', 'positioning'],
+        'LW': ['pace', 'dribbling', 'finishing'],
+        'RW': ['pace', 'dribbling', 'finishing'],
+        'ST': ['finishing', 'strength', 'positioning'],
     };
+
+    // Attributes based on schema - stamina removed (now separate field)
+    const outfieldKeys = {
+        physical: ['pace', 'strength'],
+        technical: ['finishing', 'passing', 'dribbling', 'defending'],
+        mental: ['vision', 'positioning', 'awareness', 'composure', 'aggression']
+    };
+
+    const gkKeys = {
+        physical: ['pace', 'strength'],
+        technical: ['reflexes', 'handling', 'distribution'],
+        mental: ['vision', 'positioning', 'awareness', 'composure', 'aggression']
+    };
+
+    const keys = isGK ? gkKeys : outfieldKeys;
+    const primaries = primaryAttrs[position] || [];
+    const potential: Record<string, any> = { physical: {}, technical: {}, mental: {} };
+    const current: Record<string, any> = { physical: {}, technical: {}, mental: {} };
+
+    // 1. Generate Potential with variance based on position
+    Object.entries(keys).forEach(([category, attrs]) => {
+        attrs.forEach(attr => {
+            let base = targetPotentialAvg;
+
+            // Primary attributes get a boost, others get a penalty
+            if (primaries.includes(attr)) {
+                base += 3;
+            } else {
+                base -= 1;
+            }
+
+            // Add random variance: +/- 4
+            let val = Math.floor(base + (Math.random() * 8 - 4));
+            val = Math.max(1, Math.min(20, val));
+            potential[category][attr] = val;
+        });
+    });
+
+    // 2. Generate Current based on age
+    Object.entries(keys).forEach(([category, attrs]) => {
+        attrs.forEach(attr => {
+            let ca: number;
+
+            if (age <= 17) {
+                // Young players always start in 2-7 range regardless of PA
+                ca = 2 + Math.floor(Math.random() * 6); // 2 to 7
+                // Cap by potential
+                if (ca > potential[category][attr]) ca = potential[category][attr];
+            } else {
+                // Older players scale towards their potential
+                // 18yo: ~30%, 22yo: ~60%, 26yo: ~95%
+                const startRatio = 0.30;
+                const peakRatio = 0.95;
+                const peakAge = 26;
+
+                const ratio = startRatio + (peakRatio - startRatio) * Math.min(1, (age - 18) / (peakAge - 18));
+
+                ca = Math.floor(potential[category][attr] * ratio);
+                // Add some noise
+                ca += Math.floor(Math.random() * 3 - 1);
+            }
+
+            // Final constraints
+            ca = Math.max(1, ca);
+            if (ca > potential[category][attr]) ca = potential[category][attr];
+
+            current[category][attr] = ca;
+        });
+    });
+
+    return { current: current as PlayerSkills, potential: potential as PlayerSkills };
 }
 
 async function createTestData() {
@@ -186,19 +268,30 @@ async function createTestData() {
                 const numPlayers = randomInt(15, 20);
                 for (let i = 0; i < numPlayers; i++) {
                     const name = randomElement(PLAYER_NAMES);
-                    const position = randomElement(POSITIONS);
-                    const isGoalkeeper = position === 'GK';
+                    // 10% chance to be GK
+                    const isGoalkeeper = Math.random() < 0.1;
+                    const position = isGoalkeeper ? 'GK' : randomElement(POSITIONS.filter(p => p !== 'GK'));
 
+                    const age = randomInt(17, 30);
+                    const { tier, ability } = generatePlayerPotential();
+                    const trainingSlot = ability > 80 ? TrainingSlot.GENIUS : TrainingSlot.REGULAR;
+
+                    const { current, potential } = generatePlayerAttributes(position, ability, age);
                     const player = new PlayerEntity({
                         name,
                         teamId: team.id,
-                        position,
                         isGoalkeeper,
-                        birthday: new Date(Date.now() - randomInt(18, 35) * 365 * 24 * 60 * 60 * 1000),
+                        birthday: new Date(Date.now() - (age * GAME_SETTINGS.MS_PER_YEAR) - (Math.floor(Math.random() * GAME_SETTINGS.DAYS_PER_YEAR) * 24 * 60 * 60 * 1000)),
+                        isYouth: age <= 17,
+                        potentialAbility: ability,
+                        potentialTier: tier,
+                        trainingSlot,
                         appearance: generatePlayerAppearance(),
-                        attributes: generatePlayerAttributes(position),
-                        experience: randomInt(0, 100) / 10,
-                        form: randomInt(5, 9),
+                        currentSkills: current,
+                        potentialSkills: potential,
+                        experience: randomFloat(0, 10, 1),
+                        form: randomFloat(1.0, 5.0, 1),
+                        stamina: randomFloat(1.0, 5.0, 1),
                         onTransfer: false,
                     });
 

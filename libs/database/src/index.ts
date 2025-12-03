@@ -15,3 +15,4 @@ export * from './entities/player-transaction.entity';
 export * from './utils/password.util';
 export * from './types/common.type';
 export * from './constants/finance.constants';
+export * from './constants/game.constants';

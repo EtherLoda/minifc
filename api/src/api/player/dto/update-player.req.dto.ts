@@ -1,4 +1,5 @@
-import { BooleanFieldOptional, DateFieldOptional, StringFieldOptional, UUIDFieldOptional } from '@/decorators/field.decorators';
+import { BooleanFieldOptional, DateFieldOptional, EnumFieldOptional, NumberFieldOptional, StringFieldOptional, UUIDFieldOptional } from '@/decorators/field.decorators';
+import { PotentialTier, TrainingSlot } from '@goalxi/database';
 import { IsObject, IsOptional } from 'class-validator';
 
 export class UpdatePlayerReqDto {
@@ -10,6 +11,9 @@ export class UpdatePlayerReqDto {
 
     @DateFieldOptional()
     birthday?: Date;
+
+    @NumberFieldOptional({ int: true, min: 15, max: 45 })
+    age?: number;
 
     @IsOptional()
     @IsObject()
@@ -27,4 +31,13 @@ export class UpdatePlayerReqDto {
     @IsOptional()
     @IsObject()
     attributes?: Record<string, any>;
+
+    @NumberFieldOptional({ int: true, min: 0, max: 100 })
+    potentialAbility?: number;
+
+    @EnumFieldOptional(() => PotentialTier)
+    potentialTier?: PotentialTier;
+
+    @EnumFieldOptional(() => TrainingSlot)
+    trainingSlot?: TrainingSlot;
 }
