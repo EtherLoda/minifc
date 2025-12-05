@@ -7,9 +7,11 @@ import {
 } from '@goalxi/database';
 import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
     imports: [
+        AuthModule,
         TypeOrmModule.forFeature([
             MatchEntity,
             MatchTeamStatsEntity,

@@ -106,6 +106,14 @@ describe('MatchService', () => {
           provide: DataSource,
           useValue: mockDataSource,
         },
+        {
+          provide: 'CACHE_MANAGER',
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

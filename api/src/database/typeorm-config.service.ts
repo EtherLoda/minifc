@@ -3,6 +3,25 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions, TypeOrmOptionsFactory } from '@nestjs/typeorm';
 import { AllConfigType } from '../config/config.type';
+import {
+  UserEntity,
+  SessionEntity,
+  TeamEntity,
+  LeagueEntity,
+  MatchEntity,
+  MatchTacticsEntity,
+  TacticsPresetEntity,
+  MatchEventEntity,
+  MatchTeamStatsEntity,
+  SeasonResultEntity,
+  LeagueStandingEntity,
+  FinanceEntity,
+  PlayerEntity,
+  TransactionEntity,
+  AuctionEntity,
+  PlayerHistoryEntity,
+  PlayerTransactionEntity,
+} from '@goalxi/database';
 
 @Injectable()
 export class TypeOrmConfigService implements TypeOrmOptionsFactory {
@@ -21,13 +40,33 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       }),
       dropSchema: false,
       keepConnectionAlive: true,
+      autoLoadEntities: true,
       logger: TypeOrmCustomLogger.getInstance(
         'default',
         this.configService.get('database.logging', { infer: true })
           ? ['error', 'warn', 'query', 'schema']
           : ['error', 'warn'],
       ),
-      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+      entities: [
+        __dirname + '/../**/*.entity{.ts,.js}',
+        UserEntity,
+        SessionEntity,
+        TeamEntity,
+        LeagueEntity,
+        MatchEntity,
+        MatchTacticsEntity,
+        TacticsPresetEntity,
+        MatchEventEntity,
+        MatchTeamStatsEntity,
+        SeasonResultEntity,
+        LeagueStandingEntity,
+        FinanceEntity,
+        PlayerEntity,
+        TransactionEntity,
+        AuctionEntity,
+        PlayerHistoryEntity,
+        PlayerTransactionEntity,
+      ],
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
       migrationsTableName: 'migrations',
       poolSize: this.configService.get('database.maxConnections', {

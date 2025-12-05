@@ -7,7 +7,6 @@ import { PlayerModule } from './player/player.module';
 import { TeamModule } from './team/team.module';
 import { TransferModule } from './transfer/transfer.module';
 import { UserModule } from './user/user.module';
-import { SchedulerModule } from '../scheduler/scheduler.module';
 import { StatsModule } from './stats/stats.module';
 
 @Module({
@@ -20,7 +19,6 @@ import { StatsModule } from './stats/stats.module';
     FinanceModule,
     TransferModule,
     MatchModule,
-    SchedulerModule,
     StatsModule,
   ],
 })

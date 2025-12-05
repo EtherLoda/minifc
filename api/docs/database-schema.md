@@ -312,155 +312,138 @@ Represents a football team owned by a manager.
 
 ---
 
-#### Match Table (New)
+### Match Table (Implemented)
 Represents a football match between two teams.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique match identifier |
+| `league_id` | UUID | FOREIGN KEY, NOT NULL | Reference to League |
 | `home_team_id` | UUID | FOREIGN KEY, NOT NULL | Home team |
 | `away_team_id` | UUID | FOREIGN KEY, NOT NULL | Away team |
+| `season` | INTEGER | NOT NULL | Season number |
+| `week` | INTEGER | NOT NULL | Match week number |
 | `home_score` | INTEGER | DEFAULT 0 | Home team score |
 | `away_score` | INTEGER | DEFAULT 0 | Away team score |
-| `match_date` | TIMESTAMPTZ | NOT NULL | When match was/will be played |
-| `status` | VARCHAR | DEFAULT 'scheduled' | scheduled, in_progress, completed |
-| `match_type` | VARCHAR | DEFAULT 'league' | league, cup, friendly |
+| `scheduled_at` | TIMESTAMPTZ | NOT NULL | When match is scheduled to start |
+| `simulation_completed_at` | TIMESTAMPTZ | NULLABLE | When simulation finished |
+| `status` | VARCHAR | DEFAULT 'SCHEDULED' | SCHEDULED, TACTICS_LOCKED, IN_PROGRESS, COMPLETED, CANCELLED |
+| `type` | VARCHAR | DEFAULT 'LEAGUE' | LEAGUE, CUP, FRIENDLY, TOURNAMENT |
+| `tactics_locked` | BOOLEAN | DEFAULT FALSE | Whether tactics can no longer be modified |
+| `home_forfeit` | BOOLEAN | DEFAULT FALSE | Whether home team forfeited |
+| `away_forfeit` | BOOLEAN | DEFAULT FALSE | Whether away team forfeited |
+| `has_extra_time` | BOOLEAN | DEFAULT FALSE | Whether match can go to extra time |
+| `has_penalty_shootout` | BOOLEAN | DEFAULT FALSE | Whether match can go to penalties |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 
 **Relations:**
+- Many-to-One with `League`
 - Many-to-One with `Team` (home_team_id)
 - Many-to-One with `Team` (away_team_id)
 - One-to-Many with `MatchEvent`
+- One-to-Many with `MatchTactics`
+- One-to-Many with `MatchTeamStats`
 
 ---
 
-#### MatchEvent Table (New)
+### MatchEvent Table (Implemented)
 Tracks events that occurred during a match.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique event identifier |
 | `match_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Match |
-| `player_id` | UUID | FOREIGN KEY, NOT NULL | Player involved |
-| `event_type` | VARCHAR | NOT NULL | goal, assist, yellow_card, red_card, substitution |
-| `minute` | INTEGER | NOT NULL | Minute when event occurred (1-90+) |
+| `team_id` | UUID | FOREIGN KEY, NULLABLE | Team involved |
+| `player_id` | UUID | FOREIGN KEY, NULLABLE | Player involved |
+| `related_player_id` | UUID | FOREIGN KEY, NULLABLE | Secondary player (e.g., assist provider, player substituted out) |
+| `type` | VARCHAR | NOT NULL | GOAL, ASSIST, YELLOW_CARD, RED_CARD, SUBSTITUTION, INJURY, FOUL, SHOT, SAVE, OFF_TARGET, PENALTY_GOAL, PENALTY_MISS, OWN_GOAL, VAR_CHECK, HALF_TIME, FULL_TIME, EXTRA_TIME_START, EXTRA_TIME_END, PENALTY_SHOOTOUT_START, PENALTY_SHOOTOUT_END, FORFEIT |
+| `type_name` | VARCHAR | NOT NULL | Human readable event type |
+| `minute` | INTEGER | NOT NULL | Minute when event occurred |
+| `second` | INTEGER | DEFAULT 0 | Second when event occurred |
+| `data` | JSONB | NULLABLE | Additional event data |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 
 **Relations:**
 - Many-to-One with `Match`
+- Many-to-One with `Team`
 - Many-to-One with `Player`
 
 ---
 
-### Phase 3: Advanced Features
-
-#### PlayerTransaction Table (Implemented)
-Records completed player transfers between teams.
+### MatchTactics Table (Implemented)
+Stores tactics submitted by a team for a specific match.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique transaction identifier |
-| `player_id` | UUID | FOREIGN KEY, NOT NULL | Player transferred |
-| `from_team_id` | UUID | FOREIGN KEY, NOT NULL | Selling team |
-| `to_team_id` | UUID | FOREIGN KEY, NOT NULL | Buying team |
-| `price` | INTEGER | NOT NULL | Transfer fee |
-| `season` | INTEGER | NOT NULL | Season when transfer occurred |
-| `transaction_date` | TIMESTAMPTZ | NOT NULL | When transfer was completed |
-| `auction_id` | UUID | FOREIGN KEY, NULLABLE | Reference to associated auction |
-
-**Relations:**
-- Many-to-One with `Player`
-- Many-to-One with `Team` (from_team_id)
-- Many-to-One with `Team` (to_team_id)
-- Many-to-One with `Auction`
-
----
-
-#### Auction Table (Implemented)
-Manages player auctions with bidding system.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique auction identifier |
-| `player_id` | UUID | FOREIGN KEY, NOT NULL | Player being auctioned |
-| `team_id` | UUID | FOREIGN KEY, NOT NULL | Seller team |
-| `start_price` | INTEGER | NOT NULL | Minimum starting bid |
-| `buyout_price` | INTEGER | NOT NULL | Instant purchase price |
-| `current_price` | INTEGER | NOT NULL | Current highest bid |
-| `current_bidder_id` | UUID | FOREIGN KEY, NULLABLE | Current highest bidder team |
-| `started_at` | TIMESTAMPTZ | NOT NULL | Auction start time |
-| `ends_at` | TIMESTAMPTZ | NOT NULL | Auction end time (dynamic, extends with late bids) |
-| `bid_history` | JSONB | DEFAULT [] | Array of bid records |
-| `status` | VARCHAR | DEFAULT 'ACTIVE' | ACTIVE, SOLD, EXPIRED, CANCELLED |
+| `id` | UUID | PRIMARY KEY | Unique tactics identifier |
+| `match_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Match |
+| `team_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Team |
+| `preset_id` | UUID | FOREIGN KEY, NULLABLE | Reference to TacticsPreset used |
+| `formation` | VARCHAR | NOT NULL | Formation string (e.g., "4-4-2") |
+| `lineup` | JSONB | NOT NULL | Array of player positions and instructions |
+| `substitutions` | JSONB | NULLABLE | Planned substitutions |
+| `instructions` | JSONB | NULLABLE | Team instructions |
+| `submitted_at` | TIMESTAMPTZ | NOT NULL | When tactics were submitted |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 
-**Bid History Structure (JSONB):**
-```json
-[
-  {
-    "teamId": "uuid",
-    "amount": 50000,
-    "timestamp": "2025-11-29T00:00:00Z"
-  }
-]
-```
-
 **Relations:**
-- Many-to-One with `Player`
-- Many-to-One with `Team` (seller)
-- Many-to-One with `Team` (current_bidder)
-
-**Auction Mechanics:**
-- Bids must exceed current_price + minimum increment (configured in app)
-- Bids within last 3 minutes extend auction by 3 minutes
-- Buyout price triggers instant sale
-- Expired auctions with no bids return player to seller
-- Expired auctions with bids complete sale to highest bidder
+- Many-to-One with `Match`
+- Many-to-One with `Team`
+- Many-to-One with `TacticsPreset`
 
 ---
 
-#### PlayerHistory Table (Implemented)
-Records significant events in a player's career.
+### TacticsPreset Table (Implemented)
+Stores reusable tactical setups for a team.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Unique identifier |
-| `player_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Player |
-| `season` | INTEGER | NOT NULL | Season when event occurred |
-| `date` | TIMESTAMPTZ | NOT NULL | Event date |
-| `event_type` | VARCHAR | NOT NULL | TRANSFER, CONTRACT_RENEWAL, AWARD, INJURY, DEBUT |
-| `details` | JSONB | NULLABLE | Event-specific details |
+| `id` | UUID | PRIMARY KEY | Unique preset identifier |
+| `team_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Team |
+| `name` | VARCHAR | NOT NULL | Preset name |
+| `formation` | VARCHAR | NOT NULL | Formation string |
+| `lineup` | JSONB | NOT NULL | Default lineup configuration |
+| `substitutions` | JSONB | NULLABLE | Default substitutions |
+| `instructions` | JSONB | NULLABLE | Default instructions |
+| `is_default` | BOOLEAN | DEFAULT FALSE | Whether this is the default preset |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Record last update timestamp |
 
-**Details Structure Examples (JSONB):**
-
-Transfer:
-```json
-{
-  "fromTeamId": "uuid",
-  "toTeamId": "uuid",
-  "price": 50000,
-  "auctionId": "uuid"
-}
-```
-
-Award:
-```json
-{
-  "awardType": "Player of the Month",
-  "description": "Best player in November"
-}
-```
-
 **Relations:**
-- Many-to-One with `Player`
+- Many-to-One with `Team`
 
 ---
 
-#### LeagueStanding Table (New)
+### MatchTeamStats Table (Implemented)
+Stores aggregated statistics for a team in a match.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique stats identifier |
+| `match_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Match |
+| `team_id` | UUID | FOREIGN KEY, NOT NULL | Reference to Team |
+| `possession` | INTEGER | DEFAULT 0 | Possession percentage (0-100) |
+| `shots` | INTEGER | DEFAULT 0 | Total shots |
+| `shots_on_target` | INTEGER | DEFAULT 0 | Shots on target |
+| `passes` | INTEGER | DEFAULT 0 | Total passes |
+| `pass_accuracy` | FLOAT | DEFAULT 0 | Pass completion percentage |
+| `tackles` | INTEGER | DEFAULT 0 | Total tackles |
+| `fouls` | INTEGER | DEFAULT 0 | Total fouls committed |
+| `corners` | INTEGER | DEFAULT 0 | Total corners won |
+| `offsides` | INTEGER | DEFAULT 0 | Total offsides |
+| `yellow_cards` | INTEGER | DEFAULT 0 | Total yellow cards |
+| `red_cards` | INTEGER | DEFAULT 0 | Total red cards |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+
+**Relations:**
+- Many-to-One with `Match`
+- Many-to-One with `Team`
+
+---
+
+### LeagueStanding Table (New)
 Tracks team positions in a league.
 
 | Column | Type | Constraints | Description |
@@ -504,6 +487,9 @@ Team
 ├── 1:N → PlayerTransaction (to_team)
 ├── 1:N → Match (as home_team)
 ├── 1:N → Match (as away_team)
+├── 1:N → MatchTactics
+├── 1:N → TacticsPreset
+├── 1:N → MatchTeamStats
 └── 1:N → LeagueStanding
 
 Finance
@@ -534,12 +520,26 @@ PlayerTransaction
 └── N:1 → Auction
 
 Match
+├── N:1 → League
 ├── N:1 → Team (home_team)
 ├── N:1 → Team (away_team)
-└── 1:N → MatchEvent
+├── 1:N → MatchEvent
+├── 1:N → MatchTactics
+└── 1:N → MatchTeamStats
+
+MatchTactics
+├── N:1 → Match
+├── N:1 → Team
+└── N:1 → TacticsPreset
+
+MatchEvent
+├── N:1 → Match
+├── N:1 → Team
+└── N:1 → Player
 
 League
 ├── 1:N → Team
+├── 1:N → Match
 └── 1:N → LeagueStanding
 ```
 
@@ -547,9 +547,9 @@ League
 
 ## Implementation Status
 
-- ✅ **Implemented**: User, Player, Session, Team, League, Finance, Transaction, Auction, PlayerHistory, Transfer
+- ✅ **Implemented**: User, Player, Session, Team, League, Finance, Transaction, Auction, PlayerHistory, Transfer, Match, MatchEvent, MatchTactics, TacticsPreset, MatchTeamStats
 - 🔄 **In Progress**: None
-- 📋 **Planned**: Match, MatchEvent, LeagueStanding
+- 📋 **Planned**: LeagueStanding
 
 ---
 
@@ -564,9 +564,11 @@ League
 - Seasons are represented as integers (1, 2, 3...) for simplicity
 - Auction system uses JSONB for bid history to maintain complete audit trail
 - Transaction types are enum-based for consistency
+- Match simulation events are stored in `MatchEvent` for replayability
+- Player career stats are updated in `Player` entity JSONB column
 
 ---
 
-**Last Updated**: 2025-12-01
-**Version**: 2.1.0
+**Last Updated**: 2025-12-05
+**Version**: 2.2.0
 
