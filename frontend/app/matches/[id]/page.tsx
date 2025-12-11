@@ -42,12 +42,20 @@ async function MatchData({ id }: { id: string }) {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Events Timeline */}
                     <div className="lg:col-span-2">
-                        <MatchEvents events={eventsData.events} />
+                        <MatchEvents
+                            events={eventsData.events}
+                            homeTeamId={match.homeTeamId}
+                            awayTeamId={match.awayTeamId}
+                        />
                     </div>
 
                     {/* Match Stats */}
                     <div>
-                        {stats && <MatchStats stats={stats} />}
+                        {stats && <MatchStats
+                            stats={stats}
+                            homeTeamName={match.homeTeam?.name || 'Home Team'}
+                            awayTeamName={match.awayTeam?.name || 'Away Team'}
+                        />}
                     </div>
                 </div>
             </div>

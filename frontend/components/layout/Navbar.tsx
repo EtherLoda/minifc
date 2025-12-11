@@ -6,9 +6,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Navbar() {
     return (
-        <nav className="sticky top-0 z-50 transition-colors duration-300 backdrop-blur-md border-b
-            bg-white/80 border-slate-200
-            dark:bg-black/50 dark:border-emerald-900/50">
+        <nav className="sticky top-0 z-50 transition-all duration-300 border-b-2 backdrop-blur-md
+            bg-white border-emerald-500/30 shadow-none
+            dark:bg-black/50 dark:border-emerald-900/50 dark:shadow-none">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="flex items-center gap-2 font-black italic text-2xl tracking-tighter text-slate-900 dark:text-white">

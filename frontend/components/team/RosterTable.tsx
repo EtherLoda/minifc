@@ -85,7 +85,7 @@ export function RosterTable({ players }: RosterTableProps) {
                                                 {key}
                                             </span>
                                             <span className={`font-mono text-sm ${getSkillColor(value as number)}`}>
-                                                {value}
+                                                {String(value)}
                                             </span>
                                         </div>
                                         <div className="h-1.5 bg-black/60 rounded-full overflow-hidden border border-emerald-900/30 relative">
@@ -113,10 +113,16 @@ export function RosterTable({ players }: RosterTableProps) {
     };
 
     // Generate appearance for players (placeholder - you might want to store this in DB)
+    // Generate appearance for players
     const getPlayerAppearance = (index: number) => ({
-        skinTone: ['#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac'][index % 5],
-        hairColor: ['#000000', '#3b2414', '#8b4513', '#daa520', '#ff6347'][index % 5],
-        hairStyle: ['short', 'mohawk', 'bald', 'long', 'curly'][index % 5] as any,
+        skinTone: ['#8D5524', '#C68642', '#E0AC69', '#F4C2A5', '#F4C2A5'][index % 5] as any, // Cast to SkinTone
+        hairColor: ['#000000', '#3B2414', '#8B4513', '#DAA520', '#FF6347'][index % 5],
+        hairStyle: ['short', 'mohawk', 'buzz', 'short', 'messy'][index % 5] as any,
+        bodyType: 'normal' as const,
+        jerseyColorPrimary: '#10b981',
+        jerseyColorSecondary: '#ffffff',
+        accessory: 'none' as const,
+        // Legacy support if MiniPlayer uses nested jersey still
         jersey: {
             primary: '#10b981',
             secondary: '#ffffff',
@@ -125,13 +131,19 @@ export function RosterTable({ players }: RosterTableProps) {
     });
 
     return (
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/20 backdrop-blur-md">
+        <div className="relative overflow-hidden rounded-xl border transition-all duration-300
+            bg-white border-emerald-500/40 shadow-none
+            dark:border-emerald-500/20 dark:bg-emerald-950/20 dark:backdrop-blur-md">
             {/* Background effect */}
             <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl"></div>
 
             {/* Header */}
-            <div className="relative z-10 p-6 border-b border-emerald-500/20">
-                <h2 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-400">
+            <div className="relative z-10 p-6 border-b 
+                bg-white border-emerald-500/40
+                dark:bg-transparent dark:border-emerald-500/20">
+                <h2 className="text-3xl font-black italic mb-0
+                    text-emerald-900
+                    dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-emerald-400 dark:to-green-400">
                     Squad Roster
                 </h2>
                 <p className="text-emerald-600 text-sm font-mono tracking-wider uppercase mt-2">
@@ -147,7 +159,7 @@ export function RosterTable({ players }: RosterTableProps) {
                             key={player.id}
                             href={`/players/${player.id}`}
                             className="group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 p-4 md:p-6 backdrop-blur-sm
-                                bg-white/80 border-slate-200 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1
+                                bg-white border-emerald-500/40 shadow-none hover:border-emerald-500 hover:shadow-none hover:-translate-y-1
                                 dark:bg-black/40 dark:border-emerald-500/20 dark:hover:bg-emerald-500/5 dark:hover:border-emerald-400/40 dark:hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                         >
                             {/* Scanline effect */}
@@ -172,8 +184,8 @@ export function RosterTable({ players }: RosterTableProps) {
                                     </div>
 
                                     {/* Number Badge */}
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-md
-                                        bg-slate-100 border-2 border-slate-200 text-emerald-600
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-none
+                                        bg-emerald-50 border-2 border-emerald-500/40 text-emerald-700
                                         dark:bg-black/60 dark:border-emerald-500/30 dark:text-emerald-400 dark:shadow-[0_0_15px_rgba(16,185,129,0.2)]">
                                         {index + 1}
                                     </div>
@@ -208,22 +220,22 @@ export function RosterTable({ players }: RosterTableProps) {
                                     {/* Quick Stats */}
                                     <div className="grid grid-cols-3 gap-2 mb-4">
                                         <div className="rounded-xl p-2 border-2
-                                            bg-amber-50 border-amber-200
+                                            bg-white border-emerald-500/40
                                             dark:bg-black/60 dark:border-amber-500/30">
-                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-amber-600">Stamina</div>
-                                            <div className="text-2xl font-black text-amber-600 dark:text-amber-500">{Math.floor(player.stamina)}</div>
+                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-emerald-700">Stamina</div>
+                                            <div className="text-2xl font-black text-emerald-900 dark:text-amber-500">{Math.floor(player.stamina)}</div>
                                         </div>
                                         <div className="rounded-xl p-2 border-2
-                                            bg-emerald-50 border-emerald-200
+                                            bg-white border-emerald-500/40
                                             dark:bg-black/60 dark:border-emerald-500/30">
-                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-emerald-600">Form</div>
-                                            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{Math.floor(player.form)}</div>
+                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-emerald-700">Form</div>
+                                            <div className="text-2xl font-black text-emerald-900 dark:text-emerald-400">{Math.floor(player.form)}</div>
                                         </div>
                                         <div className="rounded-xl p-2 border-2
-                                            bg-blue-50 border-blue-200
+                                            bg-white border-emerald-500/40
                                             dark:bg-black/60 dark:border-blue-500/30">
-                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-blue-600">EXP</div>
-                                            <div className="text-2xl font-black text-blue-600 dark:text-blue-400">{player.experience || 0}</div>
+                                            <div className="text-[9px] font-bold tracking-wider uppercase mb-1 text-emerald-700">EXP</div>
+                                            <div className="text-2xl font-black text-emerald-900 dark:text-blue-400">{player.experience || 0}</div>
                                         </div>
                                     </div>
 
@@ -238,10 +250,10 @@ export function RosterTable({ players }: RosterTableProps) {
 
             {/* Footer */}
             <div className="relative z-10 p-5 border-t 
-                bg-slate-50/50 border-slate-200
+                bg-emerald-50 border-emerald-500/40
                 dark:border-emerald-500/20 dark:bg-black/20">
                 <p className="text-sm font-mono text-center tracking-wider
-                    text-slate-500 dark:text-emerald-600">
+                    text-emerald-800 dark:text-emerald-600">
                     [ TOTAL: {players.length} PLAYERS ]
                 </p>
             </div>

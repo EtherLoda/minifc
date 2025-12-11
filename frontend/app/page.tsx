@@ -21,7 +21,7 @@ export default function Home() {
 
         {/* --- HUD Header --- */}
         <header className="flex flex-col md:flex-row justify-between items-end backdrop-blur-md border-2 rounded-2xl p-6 mb-12 transition-all duration-300
-          bg-white/80 border-slate-200 shadow-xl shadow-slate-200/50
+          bg-white border-emerald-500/40 shadow-none
           dark:bg-emerald-950/20 dark:border-emerald-500/20 dark:shadow-[0_0_30px_rgba(2,44,34,0.5)]">
 
           <div className="mb-4 md:mb-0">
@@ -58,8 +58,8 @@ export default function Home() {
         <div className="flex flex-wrap gap-4 mb-12 justify-center">
           <button
             onClick={() => setTeam(generateTeam(11))}
-            className="group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-lg
-              bg-white border-slate-200 hover:border-emerald-500 hover:shadow-emerald-500/10
+            className="group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-none
+              bg-white border-emerald-500/40 hover:border-emerald-500 hover:shadow-none
               dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:hover:border-emerald-400 dark:hover:shadow-emerald-500/20"
           >
             <div className="absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-xl 
@@ -71,8 +71,8 @@ export default function Home() {
             </span>
           </button>
 
-          <button className="group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-lg
-            bg-white border-slate-200 hover:border-blue-500 hover:shadow-blue-500/10
+          <button className="group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-none
+            bg-white border-emerald-500/40 hover:border-blue-500 hover:shadow-none
             dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:hover:border-emerald-400 dark:hover:shadow-emerald-500/20">
             <div className="absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-xl 
               bg-blue-50 dark:bg-emerald-500/10"></div>
@@ -90,7 +90,7 @@ export default function Home() {
             <div
               key={player.id}
               className="group relative backdrop-blur-md border-2 p-1 transition-all duration-300 hover:-translate-y-2 rounded-2xl
-                bg-white/60 border-slate-200 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10
+                bg-white border-emerald-500/40 hover:border-emerald-500 hover:shadow-none
                 dark:bg-black/40 dark:border-emerald-900/50 dark:hover:border-emerald-400/50 dark:hover:shadow-[0_0_40px_rgba(52,211,153,0.15)]"
             >
               {/* Scanline Effect Overlay - Dark Mode Only */}
