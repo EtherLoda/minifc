@@ -11,7 +11,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className }) => {
     return (
         <div
             className={clsx(
-                'animate-pulse bg-gradient-to-r from-emerald-950/40 via-emerald-900/30 to-emerald-950/40 bg-[length:200%_100%] rounded',
+                'animate-pulse bg-gradient-to-r bg-[length:200%_100%] rounded',
+                'from-slate-200 via-slate-100 to-slate-200',
+                'dark:from-emerald-950/40 dark:via-emerald-900/30 dark:to-emerald-950/40',
                 'animate-shimmer',
                 className
             )}
@@ -24,7 +26,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className }) => {
 
 export const SkeletonCard: React.FC = () => {
     return (
-        <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/20 bg-black/40 backdrop-blur-sm p-6">
+        <div className="relative overflow-hidden rounded-2xl border-2 transition-colors duration-300
+            border-slate-200 bg-white/80 backdrop-blur-sm p-6
+            dark:border-emerald-500/20 dark:bg-black/40">
             <div className="flex gap-6">
                 {/* Avatar */}
                 <div className="shrink-0">
@@ -62,7 +66,7 @@ export const SkeletonTable: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
     return (
         <div className="space-y-3">
             {/* Header */}
-            <div className="grid grid-cols-4 gap-4 p-4 border-b border-emerald-500/20">
+            <div className="grid grid-cols-4 gap-4 p-4 border-b border-slate-200 dark:border-emerald-500/20">
                 <Skeleton className="h-4" />
                 <Skeleton className="h-4" />
                 <Skeleton className="h-4" />
@@ -84,7 +88,9 @@ export const SkeletonTable: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
 
 export const SkeletonPlayerCard: React.FC = () => {
     return (
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-black/40 backdrop-blur-sm p-4">
+        <div className="relative overflow-hidden rounded-xl border transition-colors duration-300
+            border-slate-200 bg-white/80 backdrop-blur-sm p-4
+            dark:border-emerald-500/20 dark:bg-black/40">
             <div className="flex items-start justify-between mb-3">
                 <Skeleton className="w-8 h-8 rounded-lg" />
                 <Skeleton className="w-16 h-6 rounded-lg" />

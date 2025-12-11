@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen bg-black text-emerald-400 font-mono antialiased selection:bg-emerald-500 selection:text-black`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-emerald-400 font-mono antialiased selection:bg-emerald-500 selection:text-white dark:selection:text-black transition-colors duration-300`}>
         <ThemeProvider>
           <Background />
           <div className="relative z-10">

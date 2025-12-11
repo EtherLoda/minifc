@@ -5,16 +5,17 @@ import { MiniPlayer } from '@/components/MiniPlayer';
 import { LoadingSpinner, LoadingOverlay } from '@/components/ui/LoadingSpinner';
 import { SkeletonCard } from '@/components/ui/SkeletonLoader';
 import { PotentialBadge, PotentialStars } from '@/components/ui/PotentialBadge';
+import { AbilityStars } from '@/components/ui/AbilityStars';
 
 async function PlayerData({ id }: { id: string }) {
     const player = await api.getPlayer(id);
     const team = await api.getTeam(player.teamId);
 
     const getSkillColor = (val: number) => {
-        if (val >= 16) return 'text-emerald-400 font-bold';
-        if (val >= 12) return 'text-emerald-300';
-        if (val >= 8) return 'text-yellow-400';
-        return 'text-slate-400';
+        if (val >= 16) return 'text-emerald-600 dark:text-emerald-400 font-bold';
+        if (val >= 12) return 'text-emerald-500 dark:text-emerald-300';
+        if (val >= 8) return 'text-amber-500 dark:text-yellow-400';
+        return 'text-slate-500 dark:text-slate-400';
     };
 
     const getSkillBarColor = (val: number) => {
@@ -48,24 +49,24 @@ async function PlayerData({ id }: { id: string }) {
                 label: 'Physical',
                 icon: '⚡',
                 color: 'emerald',
-                bgColor: 'bg-emerald-950/30',
-                borderColor: 'border-emerald-500/20'
+                bgColor: 'bg-white/60 dark:bg-emerald-950/30',
+                borderColor: 'border-slate-200 dark:border-emerald-500/20'
             },
             {
                 key: 'technical',
                 label: 'Technical',
                 icon: '⚽',
                 color: 'blue',
-                bgColor: 'bg-blue-950/30',
-                borderColor: 'border-blue-500/20'
+                bgColor: 'bg-white/60 dark:bg-blue-950/30',
+                borderColor: 'border-slate-200 dark:border-blue-500/20'
             },
             {
                 key: 'mental',
                 label: 'Mental',
                 icon: '🧠',
                 color: 'purple',
-                bgColor: 'bg-purple-950/30',
-                borderColor: 'border-purple-500/20'
+                bgColor: 'bg-white/60 dark:bg-purple-950/30',
+                borderColor: 'border-slate-200 dark:border-purple-500/20'
             }
         ];
 
@@ -84,18 +85,16 @@ async function PlayerData({ id }: { id: string }) {
                                     {cat.label}
                                 </h3>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {Object.entries(group).map(([key, value]) => (
-                                    <div key={key} className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <span className={`text-sm ${textColor} font-bold tracking-wider uppercase`}>
-                                                {key}
-                                            </span>
-                                            <span className={`font-mono text-2xl ${getSkillColor(value as number)}`}>
-                                                {value}
-                                            </span>
-                                        </div>
-                                        <div className="h-2.5 bg-black/60 rounded-full overflow-hidden border border-emerald-900/30 relative">
+                                    <div key={key} className="flex items-center gap-3">
+                                        {/* Skill name */}
+                                        <span className={`text-xs ${textColor} font-bold tracking-wider uppercase w-20 shrink-0`}>
+                                            {key}
+                                        </span>
+
+                                        {/* Skill bar */}
+                                        <div className="flex-1 h-3 bg-black/60 rounded-full overflow-hidden border border-emerald-900/30 relative">
                                             {/* Potential bar (background) */}
                                             {player.potentialSkills?.[cat.key]?.[key] && (
                                                 <div
@@ -109,6 +108,11 @@ async function PlayerData({ id }: { id: string }) {
                                                 style={{ width: `${((value as number) / 20) * 100}%` }}
                                             />
                                         </div>
+
+                                        {/* Skill value */}
+                                        <span className={`font-black text-xl ${getSkillColor(value as number)} w-10 text-right shrink-0 tabular-nums`}>
+                                            {value}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -120,20 +124,15 @@ async function PlayerData({ id }: { id: string }) {
     };
 
     return (
-        <div className="min-h-screen bg-black font-mono">
-            {/* Cyber Background */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#083344_1px,transparent_1px),linear-gradient(to_bottom,#083344_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
-                <div className="absolute top-[-10%] left-[20%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] animate-pulse"></div>
-                <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] rounded-full bg-blue-900/10 blur-[100px]"></div>
-            </div>
+        <div className="min-h-screen font-mono">
+            {/* Background is handled globally by layout.tsx */}
 
             <div className="relative z-10 container mx-auto px-4 py-8">
                 {/* Back Button */}
                 <div className="mb-6">
                     <Link
                         href={`/teams/${player.teamId}`}
-                        className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors group"
+                        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
                     >
                         <span className="group-hover:-translate-x-1 transition-transform">←</span>
                         <span className="font-bold tracking-wider">BACK TO {team.name.toUpperCase()}</span>
@@ -142,10 +141,10 @@ async function PlayerData({ id }: { id: string }) {
 
                 {/* Player Card */}
                 <div className="mb-12">
-                    <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/20 bg-black/40 backdrop-blur-md p-4 sm:p-6 md:p-8 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+                    <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 dark:border-emerald-500/20 bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 sm:p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-[0_0_40px_rgba(16,185,129,0.2)]">
                         {/* Background effects */}
                         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                        <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.05)_50%)] bg-[size:100%_4px] pointer-events-none rounded-2xl"></div>
+                        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.05)_50%)] bg-[size:100%_4px] pointer-events-none rounded-2xl"></div>
 
                         <div className="relative z-10 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
                             {/* Left: Avatar */}
@@ -153,9 +152,10 @@ async function PlayerData({ id }: { id: string }) {
                                 {/* Player Avatar */}
                                 <div className="relative">
                                     {/* Hologram base */}
-                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-10 bg-emerald-500/30 blur-2xl rounded-full"></div>
+                                    <div className="dark:hidden absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900/10 blur-xl rounded-full"></div>
+                                    <div className="hidden dark:block absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-10 bg-emerald-500/30 blur-2xl rounded-full"></div>
 
-                                    <div className="relative z-10 filter drop-shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-125">
+                                    <div className="relative z-10 filter drop-shadow-xl dark:drop-shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-125">
                                         <MiniPlayer
                                             appearance={playerAppearance}
                                             position={player.isGoalkeeper ? 'GK' : 'FWD'}
@@ -165,39 +165,41 @@ async function PlayerData({ id }: { id: string }) {
                                 </div>
 
                                 {/* Team Badge */}
-                                <div className="px-6 py-3 rounded-xl bg-black/60 border-2 border-emerald-500/30 backdrop-blur-sm">
-                                    <div className="text-[10px] text-emerald-600 font-bold tracking-widest uppercase mb-1 text-center">Team</div>
-                                    <div className="text-lg font-black text-white text-center">{team.name}</div>
+                                <div className="px-6 py-3 rounded-xl bg-slate-100 dark:bg-black/60 border-2 border-slate-200 dark:border-emerald-500/30 backdrop-blur-sm">
+                                    <div className="text-[10px] text-slate-500 dark:text-emerald-600 font-bold tracking-widest uppercase mb-1 text-center">Team</div>
+                                    <div className="text-lg font-black text-slate-900 dark:text-white text-center">{team.name}</div>
                                 </div>
                             </div>
 
                             {/* Right: Info */}
                             <div className="flex-1 text-center md:text-left">
-                                <div className="flex items-center justify-center md:justify-start gap-3 mb-4 text-emerald-400 text-xs font-bold tracking-[0.2em] uppercase">
+                                <div className="flex items-center justify-center md:justify-start gap-3 mb-4 text-xs font-bold tracking-[0.2em] uppercase text-slate-500 dark:text-emerald-400">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                     Player Profile
                                 </div>
 
-                                <h1 className="text-4xl sm:text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-200 to-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] mb-3 md:mb-4">
+                                <h1 className="text-4xl sm:text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r 
+                                    from-emerald-600 via-emerald-500 to-emerald-700
+                                    dark:from-white dark:via-emerald-200 dark:to-emerald-400 dark:drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] mb-3 md:mb-4">
                                     {player.name}
                                 </h1>
 
-                                {/* Potential Stars */}
-                                {player.potentialTier && (
-                                    <div className="flex justify-center md:justify-start mb-4 md:mb-6">
-                                        <PotentialStars tier={player.potentialTier as any} size="lg" />
-                                    </div>
-                                )}
+                                {/* Ability Stars */}
+                                <div className="flex justify-center md:justify-start mb-4 md:mb-6">
+                                    <AbilityStars currentSkills={player.currentSkills} isGoalkeeper={player.isGoalkeeper} size="lg" />
+                                </div>
 
                                 <div className="flex flex-wrap gap-2 sm:gap-3 justify-center md:justify-start mb-6 md:mb-8">
-                                    <span className="text-emerald-600 text-lg font-mono font-bold px-4 py-2 bg-black/40 rounded-lg border border-emerald-500/30">
+                                    <span className="text-lg font-mono font-bold px-4 py-2 rounded-lg border 
+                                        bg-slate-50 border-slate-200 text-slate-600
+                                        dark:bg-black/40 dark:border-emerald-500/30 dark:text-emerald-600">
                                         AGE {player.age}, DAY {player.ageDays}
                                     </span>
                                     {player.potentialTier && (
                                         <PotentialBadge tier={player.potentialTier as any} size="lg" />
                                     )}
                                     {player.isYouth && (
-                                        <span className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 border-2 border-emerald-400/30 font-bold text-sm animate-pulse">
+                                        <span className="px-4 py-2 rounded-lg bg-emerald-50 text-emerald-600 border-2 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-400/30 font-bold text-sm animate-pulse">
                                             YOUTH ACADEMY
                                         </span>
                                     )}
@@ -205,21 +207,29 @@ async function PlayerData({ id }: { id: string }) {
 
                                 {/* Quick Stats Grid */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                                    <div className="bg-black/60 rounded-xl p-4 border-2 border-emerald-500/30 backdrop-blur-sm">
-                                        <div className="text-[10px] text-emerald-600 font-bold tracking-widest uppercase mb-2">Stamina</div>
-                                        <div className="text-4xl font-black text-white">{player.stamina.toFixed(1)}</div>
+                                    <div className="rounded-xl p-4 border-2 backdrop-blur-sm
+                                        bg-amber-50 border-amber-200
+                                        dark:bg-black/60 dark:border-amber-500/30">
+                                        <div className="text-[10px] text-amber-600 font-bold tracking-widest uppercase mb-2">Stamina</div>
+                                        <div className="text-4xl font-black text-amber-600 dark:text-amber-500">{Math.floor(player.stamina)}</div>
                                     </div>
-                                    <div className="bg-black/60 rounded-xl p-4 border-2 border-emerald-500/30 backdrop-blur-sm">
+                                    <div className="rounded-xl p-4 border-2 backdrop-blur-sm
+                                        bg-emerald-50 border-emerald-200
+                                        dark:bg-black/60 dark:border-emerald-500/30">
                                         <div className="text-[10px] text-emerald-600 font-bold tracking-widest uppercase mb-2">Form</div>
-                                        <div className="text-4xl font-black text-emerald-400">{player.form.toFixed(1)}</div>
+                                        <div className="text-4xl font-black text-emerald-600 dark:text-emerald-400">{Math.floor(player.form)}</div>
                                     </div>
-                                    <div className="bg-black/60 rounded-xl p-4 border-2 border-emerald-500/30 backdrop-blur-sm">
-                                        <div className="text-[10px] text-emerald-600 font-bold tracking-widest uppercase mb-2">Potential</div>
-                                        <div className="text-2xl font-black text-white">{player.potentialTier ?? 'N/A'}</div>
+                                    <div className="rounded-xl p-4 border-2 backdrop-blur-sm
+                                        bg-purple-50 border-purple-200
+                                        dark:bg-black/60 dark:border-purple-500/30">
+                                        <div className="text-[10px] text-purple-600 font-bold tracking-widest uppercase mb-2">Potential</div>
+                                        <div className="text-2xl font-black text-purple-600 dark:text-purple-400">{player.potentialTier ?? 'N/A'}</div>
                                     </div>
-                                    <div className="bg-black/60 rounded-xl p-4 border-2 border-emerald-500/30 backdrop-blur-sm">
-                                        <div className="text-[10px] text-emerald-600 font-bold tracking-widest uppercase mb-2">Experience</div>
-                                        <div className="text-2xl font-black text-white">{player.experience ?? 0}</div>
+                                    <div className="rounded-xl p-4 border-2 backdrop-blur-sm
+                                        bg-blue-50 border-blue-200
+                                        dark:bg-black/60 dark:border-blue-500/30">
+                                        <div className="text-[10px] text-blue-600 font-bold tracking-widest uppercase mb-2">Experience</div>
+                                        <div className="text-2xl font-black text-blue-600 dark:text-blue-400">{player.experience ?? 0}</div>
                                     </div>
                                 </div>
                             </div>

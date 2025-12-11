@@ -11,23 +11,15 @@ async function TeamData({ id }: { id: string }) {
     const players = playersRes.data;
 
     return (
-        <div className="min-h-screen bg-black font-mono">
-            {/* Cyber Background */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                {/* Grid Floor */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#022c22_1px,transparent_1px),linear-gradient(to_bottom,#022c22_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
-
-                {/* Glow Orbs */}
-                <div className="absolute top-[-10%] left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] animate-pulse"></div>
-                <div className="absolute bottom-[-10%] left-[-5%] w-[35%] h-[35%] rounded-full bg-emerald-900/10 blur-[100px]"></div>
-            </div>
+        <div className="min-h-screen font-mono">
+            {/* Background is handled globally by layout.tsx */}
 
             <div className="relative z-10 container mx-auto px-4 py-8">
                 {/* Back Button */}
                 <div className="mb-6">
                     <Link
                         href="/"
-                        className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors group"
+                        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
                     >
                         <span className="group-hover:-translate-x-1 transition-transform">←</span>
                         <span className="font-bold tracking-wider">BACK TO HOME</span>
@@ -35,26 +27,30 @@ async function TeamData({ id }: { id: string }) {
                 </div>
 
                 {/* Team Header Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-8 backdrop-blur-md shadow-[0_0_30px_rgba(2,44,34,0.3)] mb-8">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 dark:border-emerald-500/20 dark:bg-emerald-950/20 p-8 backdrop-blur-md shadow-xl shadow-slate-200/50 dark:shadow-[0_0_30px_rgba(2,44,34,0.3)] mb-8">
                     {/* Background effects */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                     <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                         {/* Team Logo */}
-                        <div className="w-24 h-24 rounded-xl bg-black/40 border-2 border-emerald-500/30 flex items-center justify-center overflow-hidden backdrop-blur-sm shadow-[0_0_20px_rgba(52,211,153,0.2)]">
+                        <div className="w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden backdrop-blur-sm 
+                            bg-slate-100 border-2 border-slate-200 shadow-md
+                            dark:bg-black/40 dark:border-emerald-500/30 dark:shadow-[0_0_20px_rgba(52,211,153,0.2)]">
                             {team.logoUrl ? (
                                 <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-4xl font-black text-emerald-400">{team.name.charAt(0)}</span>
+                                <span className="text-4xl font-black text-slate-700 dark:text-emerald-400">{team.name.charAt(0)}</span>
                             )}
                         </div>
 
                         <div>
-                            <div className="flex items-center gap-3 mb-2 text-emerald-400 text-xs font-bold tracking-[0.2em] uppercase">
+                            <div className="flex items-center gap-3 mb-2 text-xs font-bold tracking-[0.2em] uppercase text-slate-500 dark:text-emerald-400">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Active Squad
                             </div>
-                            <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-200 to-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">
+                            <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r 
+                                from-emerald-600 via-emerald-500 to-emerald-700
+                                dark:from-white dark:via-emerald-200 dark:to-emerald-400 dark:drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">
                                 {team.name}
                             </h1>
                         </div>
