@@ -18,9 +18,11 @@ export interface Player {
     name: string;
     isGoalkeeper: boolean;
     age: number;
+    ageDays: number;
     stamina: number;
     form: number;
     isYouth: boolean;
+    onTransfer: boolean;
     currentSkills?: any;
     potentialSkills?: any;
     potentialTier?: string;

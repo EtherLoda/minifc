@@ -91,31 +91,31 @@ function generatePlayerAttributes(isGK: boolean, potentialAbility: number, age: 
     const potential: Record<string, any> = { physical: {}, technical: {}, mental: {} };
     const current: Record<string, any> = { physical: {}, technical: {}, mental: {} };
 
-    // 1. Generate Potential
+    // 1. Generate Potential (with 2 decimal places)
     Object.entries(keys).forEach(([category, attrs]) => {
         attrs.forEach(attr => {
-            // Base value + random variance
-            let val = Math.floor(targetPotentialAvg + (Math.random() * 6 - 3));
+            // Base value + random variance (with decimals)
+            let val = targetPotentialAvg + (Math.random() * 6 - 3);
             val = Math.max(1, Math.min(20, val));
-            potential[category][attr] = val;
+            potential[category][attr] = parseFloat(val.toFixed(2));
         });
     });
 
-    // 2. Generate Current based on age
+    // 2. Generate Current based on age (with 2 decimal places)
     Object.entries(keys).forEach(([category, attrs]) => {
         attrs.forEach(attr => {
             let ca: number;
             if (age <= 17) {
-                ca = Math.max(1, Math.floor(potential[category][attr] * 0.4)); // Starts low
+                ca = Math.max(1, potential[category][attr] * 0.4); // Starts low
             } else {
                 // Scale towards potential: 18yo ~50%, 28yo ~100%
                 const ratio = Math.min(1, 0.5 + (age - 18) * 0.05);
-                ca = Math.floor(potential[category][attr] * ratio);
+                ca = potential[category][attr] * ratio;
             }
-            // Add noise
-            ca += Math.floor(Math.random() * 3 - 1);
+            // Add noise (smaller for decimals)
+            ca += (Math.random() * 2 - 1);
             ca = Math.max(1, Math.min(potential[category][attr], ca));
-            current[category][attr] = ca;
+            current[category][attr] = parseFloat(ca.toFixed(2));
         });
     });
 
@@ -320,7 +320,7 @@ async function createTestData() {
                     name,
                     teamId: team.id,
                     isGoalkeeper: isGK,
-                    birthday: new Date(Date.now() - (age * 365 * 24 * 60 * 60 * 1000)),
+                    birthday: new Date(Date.now() - (age * GAME_SETTINGS.MS_PER_YEAR) - (Math.floor(Math.random() * GAME_SETTINGS.DAYS_PER_YEAR) * 24 * 60 * 60 * 1000)),
                     isYouth: age <= 18,
                     potentialAbility: ability,
                     potentialTier: tier,

@@ -51,7 +51,7 @@ export default function Home() {
 
         {/* Glowing Center Circle (Pitch) */}
         <div className={`absolute top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[100px] animate-pulse transition-colors duration-700 ${isDark ? 'border border-emerald-500/20 bg-emerald-900/10' : 'border border-green-400/30 bg-green-200/40'}`}></div>
-        <div className={`absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] transition-colors duration-700 ${isDark ? 'border border-lime-500/20 bg-lime-900/10' : 'border border-lime-400/30 bg-lime-200/40'}`}></div>
+        <div className={`absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] transition-colors duration-700 ${isDark ? 'border border-emerald-500/20 bg-emerald-900/10' : 'border border-emerald-400/30 bg-emerald-200/40'}`}></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto p-6">
@@ -95,9 +95,9 @@ export default function Home() {
             </span>
           </button>
 
-          <button className={`group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-lg ${isDark ? 'bg-lime-950/40 border-lime-500/30 hover:border-lime-400 hover:shadow-lime-500/20' : 'bg-white border-lime-300 hover:border-lime-500 hover:shadow-lime-500/20'}`}>
-            <div className={`absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-xl ${isDark ? 'bg-lime-500/10' : 'bg-lime-50'}`}></div>
-            <span className={`relative font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${isDark ? 'text-lime-400 group-hover:text-white' : 'text-lime-700 group-hover:text-lime-900'}`}>
+          <button className={`group relative px-10 py-4 border-2 overflow-hidden transition-all rounded-xl shadow-lg ${isDark ? 'bg-emerald-950/40 border-emerald-500/30 hover:border-emerald-400 hover:shadow-emerald-500/20' : 'bg-white border-emerald-300 hover:border-emerald-500 hover:shadow-emerald-500/20'}`}>
+            <div className={`absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-xl ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}></div>
+            <span className={`relative font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${isDark ? 'text-emerald-400 group-hover:text-white' : 'text-emerald-700 group-hover:text-emerald-900'}`}>
               <span className="text-xl">💎</span> Marketplace
             </span>
           </button>

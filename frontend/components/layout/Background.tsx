@@ -12,7 +12,7 @@ export function Background() {
 
             {/* Glowing Center Circle (Pitch) */}
             <div className={`absolute top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[100px] animate-pulse transition-colors duration-700 border border-emerald-500/20 bg-emerald-900/10`}></div>
-            <div className={`absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] transition-colors duration-700 border border-lime-500/20 bg-lime-900/10`}></div>
+            <div className={`absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] transition-colors duration-700 border border-emerald-500/20 bg-emerald-900/10`}></div>
         </div>
     );
 }

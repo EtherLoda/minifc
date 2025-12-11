@@ -211,13 +211,15 @@ export class PlayerService {
     }
 
     private mapToResDto(player: PlayerEntity): PlayerResDto {
+        const [years, days] = player.getExactAge();
         return plainToInstance(PlayerResDto, {
             id: player.id,
             teamId: player.teamId,
             name: player.name,
             birthday: player.birthday,
             isYouth: player.isYouth,
-            age: player.age,
+            age: years,
+            ageDays: days,
             appearance: player.appearance,
             isGoalkeeper: player.isGoalkeeper,
             onTransfer: player.onTransfer,

@@ -108,7 +108,8 @@ export class PlayerEntity extends AbstractEntity {
     getExactAge(): [number, number] {
         if (!this.birthday) return [0, 0];
         const now = new Date();
-        const diffMs = now.getTime() - this.birthday.getTime();
+        const birthdayDate = new Date(this.birthday);
+        const diffMs = now.getTime() - birthdayDate.getTime();
         const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const years = Math.floor(totalDays / GAME_SETTINGS.DAYS_PER_YEAR);
         const days = totalDays % GAME_SETTINGS.DAYS_PER_YEAR;

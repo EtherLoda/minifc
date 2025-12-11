@@ -268,21 +268,6 @@ export const MiniPlayer: React.FC<Props> = ({
 
                 </g>
             </svg>
-
-            {/* Position Badge - Pixel Style */}
-            <div
-                className="absolute -bottom-1 -right-1 border-2 border-slate-900 text-white font-bold z-10 flex items-center justify-center leading-none"
-                style={{
-                    backgroundColor: getPosColor(),
-                    width: Math.max(16, size * 0.25),
-                    height: Math.max(16, size * 0.25),
-                    fontSize: Math.max(8, size * 0.15),
-                    imageRendering: 'pixelated',
-                    boxShadow: '2px 2px 0px rgba(0,0,0,0.5)'
-                }}
-            >
-                {position}
-            </div>
         </div>
     );
 };

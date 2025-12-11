@@ -36,6 +36,10 @@ export class PlayerResDto {
     @Expose()
     age: number;
 
+    @NumberField({ int: true })
+    @Expose()
+    ageDays: number;
+
     @Expose()
     appearance: Record<string, any>;
 
@@ -52,36 +56,36 @@ export class PlayerResDto {
     @Expose()
     @Transform(({ value }) => {
         if (!value) return value;
-        const rounded: any = { physical: {}, technical: {}, mental: {} };
+        const floored: any = { physical: {}, technical: {}, mental: {} };
 
-        // Round all skill values to integers
+        // Floor all skill values to integers (hide decimals from users)
         for (const category of ['physical', 'technical', 'mental']) {
             if (value[category]) {
-                rounded[category] = {};
+                floored[category] = {};
                 for (const attr in value[category]) {
-                    rounded[category][attr] = Math.round(value[category][attr]);
+                    floored[category][attr] = Math.floor(value[category][attr]);
                 }
             }
         }
-        return rounded;
+        return floored;
     })
     currentSkills: PlayerSkills;
 
     @Expose()
     @Transform(({ value }) => {
         if (!value) return value;
-        const rounded: any = { physical: {}, technical: {}, mental: {} };
+        const floored: any = { physical: {}, technical: {}, mental: {} };
 
-        // Round all skill values to integers
+        // Floor all skill values to integers (hide decimals from users)
         for (const category of ['physical', 'technical', 'mental']) {
             if (value[category]) {
-                rounded[category] = {};
+                floored[category] = {};
                 for (const attr in value[category]) {
-                    rounded[category][attr] = Math.round(value[category][attr]);
+                    floored[category][attr] = Math.floor(value[category][attr]);
                 }
             }
         }
-        return rounded;
+        return floored;
     })
     potentialSkills: PlayerSkills;
 
@@ -97,17 +101,17 @@ export class PlayerResDto {
 
     @NumberField()
     @Expose()
-    @Transform(({ value }) => Math.round(value * 10) / 10) // Round to 1 decimal
+    @Transform(({ value }) => Math.floor(value)) // Floor to integer (hide decimals from users)
     experience: number;
 
     @NumberField()
     @Expose()
-    @Transform(({ value }) => Math.round(value * 10) / 10) // Round to 1 decimal
+    @Transform(({ value }) => Math.floor(value)) // Floor to integer (hide decimals from users)
     form: number;
 
     @NumberField()
     @Expose()
-    @Transform(({ value }) => Math.round(value * 10) / 10) // Round to 1 decimal
+    @Transform(({ value }) => Math.floor(value)) // Floor to integer (hide decimals from users)
     stamina: number;
 
     @DateField()
