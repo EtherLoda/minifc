@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Match } from '@/lib/api';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, ClipboardList, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import Link from 'next/link';
 
@@ -67,8 +67,13 @@ export default function FixturesList({ matches }: FixturesListProps) {
                     </div>
                 ) : (
                     filteredMatches.map((match) => (
-                        <div key={match.id} className="p-4 transition-colors group border-l-2 border-transparent
-                            hover:bg-emerald-50 dark:hover:bg-emerald-900/10">
+                        <Link
+                            key={match.id}
+                            href={`/matches/${match.id}`}
+                            className="block p-4 transition-colors group border-l-2 border-transparent cursor-pointer
+                                hover:bg-emerald-50 
+                                dark:hover:bg-emerald-900/10"
+                        >
                             <div className="flex items-center justify-between text-sm mb-3">
                                 <div className="flex items-center gap-2 text-slate-500 dark:text-emerald-600/70">
                                     <Clock size={14} />
@@ -78,12 +83,27 @@ export default function FixturesList({ matches }: FixturesListProps) {
                             </div>
 
                             <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                                <div className="flex items-center gap-3 text-right justify-end">
+                                <div className="flex items-center gap-2 text-right justify-end">
                                     <span className="font-bold text-base transition-colors text-emerald-900 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300">
-                                        <Link href={`/teams/${match.homeTeamId}`} className="hover:underline decoration-emerald-500/50">
+                                        <Link href={`/teams/${match.homeTeamId}`} className="hover:underline decoration-emerald-500/50" onClick={(e) => e.stopPropagation()}>
                                             {match.homeTeam?.name || 'Home Team'}
                                         </Link>
                                     </span>
+                                    {match.status !== 'completed' && (
+                                        <Link
+                                            href={`/matches/${match.id}/tactics/${match.homeTeamId}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={clsx(
+                                                "p-1.5 rounded-md transition-colors",
+                                                match.homeTacticsSet
+                                                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                                                    : "hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 dark:text-emerald-600 dark:hover:text-emerald-400"
+                                            )}
+                                            title={match.homeTacticsSet ? "Tactics Set" : "Set Tactics"}
+                                        >
+                                            {match.homeTacticsSet ? <CheckCircle size={16} /> : <ClipboardList size={16} />}
+                                        </Link>
+                                    )}
                                 </div>
 
                                 <div className="px-4 py-1.5 rounded-lg border font-mono font-black text-lg min-w-[80px] text-center transition-all
@@ -92,15 +112,30 @@ export default function FixturesList({ matches }: FixturesListProps) {
                                     {match.status === 'scheduled' ? 'vs' : `${match.homeScore} - ${match.awayScore}`}
                                 </div>
 
-                                <div className="flex items-center gap-3 text-left justify-start">
+                                <div className="flex items-center gap-2 text-left justify-start">
+                                    {match.status !== 'completed' && (
+                                        <Link
+                                            href={`/matches/${match.id}/tactics/${match.awayTeamId}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={clsx(
+                                                "p-1.5 rounded-md transition-colors",
+                                                match.awayTacticsSet
+                                                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                                                    : "hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 dark:text-emerald-600 dark:hover:text-emerald-400"
+                                            )}
+                                            title={match.awayTacticsSet ? "Tactics Set" : "Set Tactics"}
+                                        >
+                                            {match.awayTacticsSet ? <CheckCircle size={16} /> : <ClipboardList size={16} />}
+                                        </Link>
+                                    )}
                                     <span className="font-bold text-base transition-colors text-emerald-900 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300">
-                                        <Link href={`/teams/${match.awayTeamId}`} className="hover:underline decoration-emerald-500/50">
+                                        <Link href={`/teams/${match.awayTeamId}`} className="hover:underline decoration-emerald-500/50" onClick={(e) => e.stopPropagation()}>
                                             {match.awayTeam?.name || 'Away Team'}
                                         </Link>
                                     </span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     ))
                 )}
             </div>

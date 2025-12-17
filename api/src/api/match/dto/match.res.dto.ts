@@ -31,4 +31,8 @@ export class MatchResDto {
     firstHalfInjuryTime!: number | null;
     secondHalfInjuryTime!: number | null;
     hasExtraTime!: boolean;
+
+    // Computed fields
+    homeTacticsSet?: boolean;
+    awayTacticsSet?: boolean;
 }

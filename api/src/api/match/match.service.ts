@@ -5,6 +5,8 @@ import {
     ForbiddenException,
     Inject,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -54,6 +56,8 @@ export class MatchService {
         private readonly statsRepository: Repository<MatchTeamStatsEntity>,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
         private readonly dataSource: DataSource,
+        @InjectQueue('match-simulation')
+        private readonly simulationQueue: Queue,
     ) { }
 
     async findAll(filters: ListMatchesReqDto): Promise<MatchListResDto> {
@@ -110,8 +114,27 @@ export class MatchService {
             .take(limit)
             .getManyAndCount();
 
+        const dtos = matches.map((match) => this.mapToResDto(match));
+
+        const matchIds = matches.map((m) => m.id);
+        if (matchIds.length > 0) {
+            const tactics = await this.tacticsRepository.find({
+                where: { matchId: In(matchIds) },
+                select: ['matchId', 'teamId'],
+            });
+
+            dtos.forEach((dto) => {
+                dto.homeTacticsSet = tactics.some(
+                    (t) => t.matchId === dto.id && t.teamId === dto.homeTeamId,
+                );
+                dto.awayTacticsSet = tactics.some(
+                    (t) => t.matchId === dto.id && t.teamId === dto.awayTeamId,
+                );
+            });
+        }
+
         return {
-            data: matches.map((match) => this.mapToResDto(match)),
+            data: dtos,
             meta: {
                 total,
                 page,
@@ -213,6 +236,59 @@ export class MatchService {
         }
 
         await this.matchRepository.remove(match);
+    }
+
+    /**
+     * Queue a match for simulation
+     * @param matchId - The ID of the match to simulate
+     * @returns Status of the queued job
+     */
+    async queueSimulation(matchId: string): Promise<{ status: string; matchId: string }> {
+        const match = await this.matchRepository.findOne({
+            where: { id: matchId },
+            relations: ['homeTeam', 'awayTeam']
+        });
+
+        if (!match) {
+            throw new NotFoundException(`Match with ID ${matchId} not found`);
+        }
+
+        if (match.status === MatchStatus.COMPLETED) {
+            throw new BadRequestException('Match is already completed');
+        }
+
+        if (match.status === MatchStatus.IN_PROGRESS) {
+            throw new BadRequestException('Match simulation is already in progress');
+        }
+
+        // Check if both teams have submitted tactics
+        const [homeTactics, awayTactics] = await Promise.all([
+            this.tacticsRepository.findOne({ where: { matchId, teamId: match.homeTeamId } }),
+            this.tacticsRepository.findOne({ where: { matchId, teamId: match.awayTeamId } }),
+        ]);
+
+        if (!homeTactics && !awayTactics) {
+            throw new BadRequestException(
+                `Both teams (${match.homeTeam?.name || 'Home'} and ${match.awayTeam?.name || 'Away'}) need to submit tactics before simulation can start`
+            );
+        }
+
+        if (!homeTactics) {
+            throw new BadRequestException(
+                `${match.homeTeam?.name || 'Home team'} needs to submit tactics before simulation can start`
+            );
+        }
+
+        if (!awayTactics) {
+            throw new BadRequestException(
+                `${match.awayTeam?.name || 'Away team'} needs to submit tactics before simulation can start`
+            );
+        }
+
+        // Add job to simulation queue
+        await this.simulationQueue.add('simulate', { matchId });
+
+        return { status: 'queued', matchId };
     }
 
     async getTactics(

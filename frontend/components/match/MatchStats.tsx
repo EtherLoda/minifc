@@ -10,6 +10,15 @@ interface MatchStatsProps {
 }
 
 export function MatchStats({ stats, homeTeamName, awayTeamName }: MatchStatsProps) {
+    if (!stats || !stats.home || !stats.away) {
+        return (
+            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+                <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2">Match Stats</h2>
+                <div className="text-slate-400 text-center py-4">No statistics available</div>
+            </div>
+        );
+    }
+
     const { home, away } = stats;
 
     const StatRow = ({ label, homeValue, awayValue, isPercentage = false }: { label: string, homeValue: number, awayValue: number, isPercentage?: boolean }) => {

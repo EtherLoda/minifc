@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { getQueueToken } from '@nestjs/bullmq';
 import { DataSource } from 'typeorm';
 import {
   MatchEntity,
@@ -112,6 +113,12 @@ describe('MatchService', () => {
             get: jest.fn(),
             set: jest.fn(),
             del: jest.fn(),
+          },
+        },
+        {
+          provide: getQueueToken('match-simulation'),
+          useValue: {
+            add: jest.fn(),
           },
         },
       ],

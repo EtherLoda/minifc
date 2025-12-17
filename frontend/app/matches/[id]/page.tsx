@@ -1,8 +1,7 @@
 import React, { Suspense } from 'react';
 import { api } from '@/lib/api';
 import { MatchHeader } from '@/components/match/MatchHeader';
-import { MatchEvents } from '@/components/match/MatchEvents';
-import { MatchStats } from '@/components/match/MatchStats';
+import { LiveMatchViewer } from '@/components/match/LiveMatchViewer';
 import { Skeleton } from '@/components/ui/SkeletonLoader';
 import Link from 'next/link';
 
@@ -38,26 +37,17 @@ async function MatchData({ id }: { id: string }) {
                     <MatchHeader match={match} />
                 </div>
 
-                {/* Match Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Events Timeline */}
-                    <div className="lg:col-span-2">
-                        <MatchEvents
-                            events={eventsData.events}
-                            homeTeamId={match.homeTeamId}
-                            awayTeamId={match.awayTeamId}
-                        />
-                    </div>
-
-                    {/* Match Stats */}
-                    <div>
-                        {stats && <MatchStats
-                            stats={stats}
-                            homeTeamName={match.homeTeam?.name || 'Home Team'}
-                            awayTeamName={match.awayTeam?.name || 'Away Team'}
-                        />}
-                    </div>
-                </div>
+                {/* Live Match Viewer with Simulation Control */}
+                <LiveMatchViewer
+                    matchId={id}
+                    homeTeamId={match.homeTeamId}
+                    awayTeamId={match.awayTeamId}
+                    homeTeamName={match.homeTeam?.name || 'Home Team'}
+                    awayTeamName={match.awayTeam?.name || 'Away Team'}
+                    initialEventsData={eventsData}
+                    initialStats={stats}
+                    matchStatus={match.status}
+                />
             </div>
         </div>
     );

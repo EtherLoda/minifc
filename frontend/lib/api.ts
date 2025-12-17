@@ -16,6 +16,8 @@ export interface Player {
     id: string;
     teamId: string;
     name: string;
+    position: string;
+    overall: number;
     isGoalkeeper: boolean;
     age: number;
     ageDays: number;
@@ -44,6 +46,8 @@ export interface Match {
     scheduledAt: string;
     status: 'scheduled' | 'tactics_locked' | 'in_progress' | 'completed' | 'cancelled';
     type: string;
+    homeTacticsSet?: boolean;
+    awayTacticsSet?: boolean;
 }
 
 export interface LeagueStanding {
@@ -61,13 +65,22 @@ export interface LeagueStanding {
 }
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
-async function fetchJson<T>(endpoint: string): Promise<T> {
+async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         cache: 'no-store', // Always fetch fresh data for now
+        ...options,
     });
 
     if (!res.ok) {
-        throw new Error(`API Error: ${res.status} ${res.statusText}`);
+        // Try to extract error message from response body
+        try {
+            const errorData = await res.json();
+            const message = errorData.message || errorData.error || `API Error: ${res.status} ${res.statusText}`;
+            throw new Error(Array.isArray(message) ? message.join(', ') : message);
+        } catch (parseError) {
+            // If parsing fails, throw generic error
+            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+        }
     }
 
     return res.json();
@@ -108,6 +121,16 @@ export interface MatchStatsRes {
     away: MatchTeamStats;
 }
 
+export interface Tactics {
+    id: string;
+    matchId: string;
+    teamId: string;
+    formation?: string;
+    lineup: Record<string, string | null>;
+    mentality?: string;
+    focus?: string;
+}
+
 // ... (api object)
 
 export interface MatchEventsResponse {
@@ -146,5 +169,16 @@ export const api = {
     getMatchEvents: (matchId: string) => fetchJson<MatchEventsResponse>(`/matches/${matchId}/events`),
 
     getMatchStats: (matchId: string) => fetchJson<MatchStatsRes>(`/stats/matches/${matchId}`),
+
+    triggerSimulation: (matchId: string) => fetchJson<{ status: string; matchId: string }>(`/matches/${matchId}/simulate`, { method: 'POST' }),
+
+    getTactics: (matchId: string) => fetchJson<{ homeTactics: Tactics | null; awayTactics: Tactics | null }>(`/matches/${matchId}/tactics`),
+
+    submitTactics: (matchId: string, teamId: string, lineup: Record<string, string | null>, formation: string) =>
+        fetchJson<Tactics>(`/matches/${matchId}/tactics`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ teamId, lineup, formation }),
+        }),
 };
 

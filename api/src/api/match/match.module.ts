@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import {
   MatchEntity,
   MatchTacticsEntity,
@@ -21,6 +22,9 @@ import { AuthModule } from '../auth/auth.module';
   imports: [
     AuthModule,
     CacheModule.register(),
+    BullModule.registerQueue({
+      name: 'match-simulation',
+    }),
     TypeOrmModule.forFeature([
       MatchEntity,
       MatchTacticsEntity,

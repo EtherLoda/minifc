@@ -17,10 +17,14 @@ export class PlayerService {
     async findMany(
         reqDto: ListPlayerReqDto,
     ): Promise<OffsetPaginatedDto<PlayerResDto>> {
-        const query = PlayerEntity.createQueryBuilder('player').orderBy(
-            'player.createdAt',
-            'DESC',
-        );
+        const query = PlayerEntity.createQueryBuilder('player');
+
+        if (reqDto.teamId) {
+            query.where('player.teamId = :teamId', { teamId: reqDto.teamId });
+        }
+
+        query.orderBy('player.createdAt', 'DESC');
+
         const [players, metaDto] = await paginate<PlayerEntity>(query, reqDto, {
             skipCount: false,
             takeAll: false,

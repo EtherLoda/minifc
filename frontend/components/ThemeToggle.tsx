@@ -15,7 +15,7 @@ export function ThemeToggle() {
 
     if (!mounted) {
         return (
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-slate-200 dark:border-emerald-500/30 bg-white dark:bg-black/20"></div>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-transparent bg-transparent"></div>
         );
     }
 

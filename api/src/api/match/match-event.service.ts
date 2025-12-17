@@ -7,6 +7,7 @@ import {
     MatchTeamStatsEntity,
     TeamEntity,
     GAME_SETTINGS,
+    MatchStatus,
 } from '@goalxi/database';
 
 // MatchEventType enum (matches simulator/src/engine/types.ts)
@@ -79,19 +80,22 @@ export class MatchEventService {
 
         // Get streaming speed from settings
         const streamingSpeed = GAME_SETTINGS.MATCH_STREAMING_SPEED;
-
-        // Calculate current visible minute
-        const elapsedMs = Date.now() - match.scheduledAt.getTime();
-        const currentMinute = Math.floor(elapsedMs / (60 * 1000 / streamingSpeed));
-
-        // Calculate total match duration (including injury time)
         const totalMinutes =
             90 +
             (match.firstHalfInjuryTime || 0) +
             (match.secondHalfInjuryTime || 0) +
             (match.hasExtraTime ? 30 : 0);
 
-        const maxVisibleMinute = Math.min(currentMinute, totalMinutes);
+        let maxVisibleMinute = 0;
+
+        if (match.status === MatchStatus.COMPLETED) {
+            maxVisibleMinute = totalMinutes + 10;
+        } else {
+            // Calculate current visible minute based on scheduled time
+            const elapsedMs = Date.now() - match.scheduledAt.getTime();
+            const currentMinute = Math.floor(elapsedMs / (60 * 1000 / streamingSpeed));
+            maxVisibleMinute = Math.min(currentMinute, totalMinutes);
+        }
 
         // Fetch events up to current minute
         const events = await this.eventRepository.find({
