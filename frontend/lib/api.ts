@@ -63,27 +63,35 @@ export interface LeagueStanding {
     goalDifference: number;
     points: number;
 }
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = 'http://127.0.0.1:3000/api/v1';
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        cache: 'no-store', // Always fetch fresh data for now
-        ...options,
-    });
+    console.log(`[API] Fetching: ${API_BASE_URL}${endpoint}`);
+    try {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+            cache: 'no-store', // Always fetch fresh data for now
+            ...options,
+        });
 
-    if (!res.ok) {
-        // Try to extract error message from response body
-        try {
-            const errorData = await res.json();
-            const message = errorData.message || errorData.error || `API Error: ${res.status} ${res.statusText}`;
-            throw new Error(Array.isArray(message) ? message.join(', ') : message);
-        } catch (parseError) {
-            // If parsing fails, throw generic error
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+        if (!res.ok) {
+            console.error(`[API] Error ${res.status}: ${res.statusText}`);
+            // Try to extract error message from response body
+            try {
+                const errorData = await res.json();
+                console.error('[API] Error Body:', errorData);
+                const message = errorData.message || errorData.error || `API Error: ${res.status} ${res.statusText}`;
+                throw new Error(Array.isArray(message) ? message.join(', ') : message);
+            } catch (parseError) {
+                // If parsing fails, throw generic error
+                throw new Error(`API Error: ${res.status} ${res.statusText}`);
+            }
         }
-    }
 
-    return res.json();
+        return res.json();
+    } catch (error) {
+        console.error('[API] Network/Fetch Error:', error);
+        throw error;
+    }
 }
 
 // ... (interfaces)
@@ -155,8 +163,12 @@ export const api = {
     getStandings: (leagueId: string, season: number = 1) =>
         fetchJson<LeagueStanding[]>(`/leagues/${leagueId}/standings?season=${season}`),
 
-    getMatches: (leagueId: string, season: number = 1) =>
-        fetchJson<{ data: Match[] }>(`/matches?leagueId=${leagueId}&season=${season}&limit=100`).then(res => res.data),
+    getMatches: (leagueId?: string, season: number = 1, teamId?: string) => {
+        let url = `/matches?season=${season}&limit=100`;
+        if (leagueId) url += `&leagueId=${leagueId}`;
+        if (teamId) url += `&teamId=${teamId}`;
+        return fetchJson<{ data: Match[] }>(url).then(res => res.data);
+    },
 
     getTeam: (id: string) => fetchJson<Team>(`/teams/${id}`),
 
@@ -180,5 +192,22 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ teamId, lineup, formation }),
         }),
+
+    // Auth
+    login: (data: any) => fetchJson<any>('/auth/email/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }),
+
+    register: (data: any) => fetchJson<any>('/auth/email/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }),
+
+    getMe: (token: string) => fetchJson<any>('/users/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    }),
 };
 

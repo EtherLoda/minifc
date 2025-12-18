@@ -93,7 +93,7 @@ export class PlayerService {
         await player.softRemove();
     }
 
-    async generateRandom(count: number = 1): Promise<PlayerResDto[]> {
+    async generateRandom(count: number = 1, teamId?: string): Promise<PlayerResDto[]> {
         const players: PlayerResDto[] = [];
 
         const firstNames = [
@@ -116,6 +116,7 @@ export class PlayerService {
             const [currentSkills, potentialSkills] = this.generateRandomSkills(isGoalkeeper);
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
+                teamId: teamId || null,
                 isGoalkeeper,
                 appearance: this.generateRandomAppearance(),
                 currentSkills,

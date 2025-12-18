@@ -29,9 +29,21 @@ export class UserResDto {
   @Expose()
   nickname?: string;
 
-  @StringField()
+  @StringFieldOptional()
   @Expose()
-  avatar: string;
+  avatar?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  teamId?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  teamName?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  leagueId?: string;
 
   @NumberField()
   @Expose()

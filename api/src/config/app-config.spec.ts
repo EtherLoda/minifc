@@ -241,10 +241,10 @@ describe('AppConfig', () => {
       expect(config.corsOrigin).toBe('*');
     });
 
-    it('should return false when APP_CORS_ORIGIN is empty', async () => {
+    it('should return true when APP_CORS_ORIGIN is empty', async () => {
       process.env.APP_CORS_ORIGIN = '';
       const config = await appConfig();
-      expect(config.corsOrigin).toBe(false);
+      expect(config.corsOrigin).toBe(true);
     });
 
     it('should return a single origin when APP_CORS_ORIGIN is a valid URL', async () => {

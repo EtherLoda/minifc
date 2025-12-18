@@ -12,9 +12,14 @@ import { TeamResDto } from './dto/team.res.dto';
 import { UpdateTeamReqDto } from './dto/update-team.req.dto';
 import { TeamEntity } from '@goalxi/database';
 
+import { PlayerService } from '../player/player.service';
+import { PlayerEntity } from '@goalxi/database';
+
 @Injectable()
 export class TeamService {
-    constructor() { }
+    constructor(
+        private readonly playerService: PlayerService,
+    ) { }
 
     async findMany(
         reqDto: ListTeamReqDto,
@@ -34,9 +39,22 @@ export class TeamService {
         );
     }
 
-    async findOne(id: Uuid): Promise<TeamResDto> {
+    async findOne(id: string): Promise<TeamResDto> {
         assert(id, 'id is required');
-        const team = await TeamEntity.findOneByOrFail({ id });
+
+        // Generic UUID regex to prevent DB errors
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(id)) {
+            throw new ValidationException(ErrorCode.E002, 'Invalid ID format');
+        }
+
+        const team = await TeamEntity.findOneByOrFail({ id: id as Uuid });
+
+        // Auto-generate players if team has none (e.g. for existing teams before this logic)
+        const playersCount = await PlayerEntity.countBy({ teamId: team.id });
+        if (playersCount === 0) {
+            await this.playerService.generateRandom(18, team.id);
+        }
 
         return this.mapToResDto(team);
     }
@@ -65,6 +83,9 @@ export class TeamService {
         });
 
         await team.save();
+
+        // Initialize team with a starting squad of 18 players
+        await this.playerService.generateRandom(18, team.id);
 
         return this.mapToResDto(team);
     }

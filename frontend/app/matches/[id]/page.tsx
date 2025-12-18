@@ -1,108 +1,84 @@
-import React, { Suspense } from 'react';
-import { api } from '@/lib/api';
-import { MatchHeader } from '@/components/match/MatchHeader';
-import { LiveMatchViewer } from '@/components/match/LiveMatchViewer';
+'use client';
+
+import { api, Match, Team } from '@/lib/api';
+import { useAuth } from '@/components/auth/AuthContext';
+import { useEffect, useState, use } from 'react';
+import { LayoutGrid, List as ListIcon, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/SkeletonLoader';
+import FixturesList from '@/components/league/FixturesList';
 import Link from 'next/link';
+import { clsx } from 'clsx';
 
-async function MatchData({ id }: { id: string }) {
-    const match = await api.getMatch(id);
-    const eventsData = await api.getMatchEvents(id);
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
 
-    let stats = null;
-    try {
-        stats = await api.getMatchStats(id);
-    } catch (e) {
-        // Ignore error if stats not found
+export default function TeamFixturesPage({ params }: PageProps) {
+    const { id: teamId } = use(params);
+    const { user } = useAuth();
+    const [matches, setMatches] = useState<Match[]>([]);
+    const [team, setTeam] = useState<Team | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [teamData, matchesData] = await Promise.all([
+                    api.getTeam(teamId),
+                    // Fetch all matches for the team's league to show the full context if needed, 
+                    // or just team matches. Let's fetch by teamId since we are on the team fixtures page.
+                    api.getMatches(undefined, 1, teamId)
+                ]);
+                setTeam(teamData);
+                setMatches(matchesData);
+            } catch (error) {
+                console.error('Failed to fetch team fixtures:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [teamId]);
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-8 space-y-8">
+                <Skeleton className="h-12 w-64" />
+                <Skeleton className="h-[600px] w-full rounded-2xl" />
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen font-mono">
-            {/* Background is handled globally by layout.tsx */}
+        <div className="container mx-auto px-4 py-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                    <div className="flex items-center gap-3 mb-2 text-xs font-bold tracking-[0.2em] uppercase text-emerald-600 dark:text-emerald-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Team Schedule
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-emerald-900 dark:text-white uppercase">
+                        {team?.name} FIXTURES
+                    </h1>
+                </div>
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
-                {/* Back Button */}
-                <div className="mb-6">
+                <div className="flex items-center gap-4">
                     <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
+                        href="/matches"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-emerald-500/20 text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
                     >
-                        <span className="group-hover:-translate-x-1 transition-transform">←</span>
-                        <span className="font-bold tracking-wider">BACK TO HOME</span>
+                        <ListIcon size={18} /> All League Fixtures
                     </Link>
                 </div>
-
-                {/* Match Header */}
-                <div className="mb-8">
-                    <MatchHeader match={match} />
-                </div>
-
-                {/* Live Match Viewer with Simulation Control */}
-                <LiveMatchViewer
-                    matchId={id}
-                    homeTeamId={match.homeTeamId}
-                    awayTeamId={match.awayTeamId}
-                    homeTeamName={match.homeTeam?.name || 'Home Team'}
-                    awayTeamName={match.awayTeam?.name || 'Away Team'}
-                    initialEventsData={eventsData}
-                    initialStats={stats}
-                    matchStatus={match.status}
-                />
-            </div>
-        </div>
-    );
-}
-
-function MatchLoadingSkeleton() {
-    return (
-        <div className="min-h-screen bg-black font-mono">
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#022c22_1px,transparent_1px),linear-gradient(to_bottom,#022c22_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
-                <div className="absolute top-[-10%] left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] animate-pulse"></div>
             </div>
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
-                <div className="mb-6">
-                    <Skeleton className="h-4 w-32" />
-                </div>
-
-                {/* Match Header Skeleton */}
-                <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-8">
-                    <div className="flex items-center justify-between gap-8">
-                        <div className="flex-1 space-y-3">
-                            <Skeleton className="h-8 w-48" />
-                            <Skeleton className="h-6 w-32" />
-                        </div>
-                        <Skeleton className="h-24 w-24 rounded-2xl" />
-                        <div className="flex-1 space-y-3 text-right">
-                            <Skeleton className="h-8 w-48 ml-auto" />
-                            <Skeleton className="h-6 w-32 ml-auto" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Content Grid Skeleton */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-4">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <Skeleton key={i} className="h-20 rounded-xl" />
-                        ))}
-                    </div>
-                    <div className="space-y-4">
-                        <Skeleton className="h-64 rounded-xl" />
-                    </div>
+            <div className="grid grid-cols-1 gap-8">
+                <div className="relative overflow-hidden rounded-2xl border bg-white border-emerald-500/40 dark:bg-emerald-950/20 dark:border-emerald-500/10 min-h-[600px]">
+                    <FixturesList matches={matches} />
                 </div>
             </div>
         </div>
-    );
-}
-
-export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-
-    return (
-        <Suspense fallback={<MatchLoadingSkeleton />}>
-            <MatchData id={id} />
-        </Suspense>
     );
 }

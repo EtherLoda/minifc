@@ -26,6 +26,11 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
 
+  app.use((req, res, next) => {
+    console.log(`[Request] ${req.method} ${req.url}`);
+    next();
+  });
+
   // Setup security headers
   app.use(helmet());
 
@@ -40,10 +45,16 @@ async function bootstrap() {
     infer: true,
   });
 
+  // app.enableCors({
+  //   origin: corsOrigin,
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  //   allowedHeaders: 'Content-Type, Accept',
+  //   credentials: true,
+  // });
   app.enableCors({
-    origin: corsOrigin,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept',
+    origin: corsOrigin, // 确保这里的 corsOrigin 是一个数组（见下文）
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', // 建议加上 OPTIONS
+    allowedHeaders: 'Content-Type, Accept, Authorization', // 加上 Authorization
     credentials: true,
   });
   console.info('CORS Origin:', corsOrigin);

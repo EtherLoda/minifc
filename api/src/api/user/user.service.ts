@@ -17,7 +17,7 @@ import { ListUserReqDto } from './dto/list-user.req.dto';
 import { LoadMoreUsersReqDto } from './dto/load-more-users.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { UserResDto } from './dto/user.res.dto';
-import { UserEntity } from '@goalxi/database';
+import { UserEntity, TeamEntity } from '@goalxi/database';
 
 @Injectable()
 export class UserService {
@@ -104,8 +104,16 @@ export class UserService {
   async findOne(id: Uuid): Promise<UserResDto> {
     assert(id, 'id is required');
     const user = await this.userRepository.findOneByOrFail({ id });
+    const team = await TeamEntity.findOneBy({ userId: id });
 
-    return user.toDto(UserResDto);
+    const dto = user.toDto(UserResDto);
+    if (team) {
+      dto.teamId = team.id;
+      dto.teamName = team.name;
+      dto.leagueId = team.leagueId;
+    }
+
+    return dto;
   }
 
   async update(id: Uuid, updateUserDto: UpdateUserReqDto) {

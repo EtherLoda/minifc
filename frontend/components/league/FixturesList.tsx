@@ -5,12 +5,14 @@ import { Match } from '@/lib/api';
 import { ChevronLeft, ChevronRight, Clock, ClipboardList, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface FixturesListProps {
     matches: Match[];
 }
 
 export default function FixturesList({ matches }: FixturesListProps) {
+    const router = useRouter();
     const [currentWeek, setCurrentWeek] = useState(1);
     const totalWeeks = 14; // Fixed for now based on seed
 
@@ -67,9 +69,9 @@ export default function FixturesList({ matches }: FixturesListProps) {
                     </div>
                 ) : (
                     filteredMatches.map((match) => (
-                        <Link
+                        <div
                             key={match.id}
-                            href={`/matches/${match.id}`}
+                            onClick={() => router.push(`/matches/live/${match.id}`)}
                             className="block p-4 transition-colors group border-l-2 border-transparent cursor-pointer
                                 hover:bg-emerald-50 
                                 dark:hover:bg-emerald-900/10"
@@ -135,7 +137,7 @@ export default function FixturesList({ matches }: FixturesListProps) {
                                     </span>
                                 </div>
                             </div>
-                        </Link>
+                        </div>
                     ))
                 )}
             </div>
