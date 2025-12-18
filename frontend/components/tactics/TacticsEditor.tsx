@@ -5,6 +5,7 @@ import { Player, api } from '@/lib/api';
 import { PitchLayout } from './PitchLayout';
 import { PlayerRoster } from './PlayerRoster';
 import { Save } from 'lucide-react';
+import { useNotification } from '@/components/ui/NotificationContext';
 
 interface TacticsEditorProps {
     matchId: string;
@@ -56,8 +57,7 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
     const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
     const [draggedFrom, setDraggedFrom] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
+    const { showNotification } = useNotification();
 
     const handleDragStart = (playerId: string, from: string | null) => {
         setDraggedPlayer(playerId);
@@ -119,13 +119,15 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
     const handleSubmit = async () => {
         const validation = validateLineup();
         if (!validation.valid) {
-            setError(validation.error!);
+            showNotification({
+                type: 'warning',
+                title: 'Invalid Lineup',
+                message: validation.error!,
+            });
             return;
         }
 
         setIsSubmitting(true);
-        setError(null);
-        setSuccess(false);
 
         const backendLineup: Record<string, string> = {};
         Object.entries(lineup).forEach(([slot, playerId]) => {
@@ -137,10 +139,17 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
         try {
             const formationStr = generateFormation();
             await api.submitTactics(matchId, teamId, backendLineup, formationStr);
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+            showNotification({
+                type: 'success',
+                title: 'Tactics Saved',
+                message: `Your ${formationStr} formation has been submitted.`,
+            });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to submit tactics');
+            showNotification({
+                type: 'error',
+                title: 'Save Failed',
+                message: err instanceof Error ? err.message : 'Failed to submit tactics',
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -204,20 +213,12 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
                     </div>
                 </button>
 
-                {/* Error/Success Messages */}
-                {error && (
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400">
-                        Tactics saved successfully!
-                    </div>
-                )}
                 {!validation.valid && validation.error && (
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400">
-                        {validation.error}
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 font-bold uppercase tracking-tight">
+                        <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            {validation.error}
+                        </div>
                     </div>
                 )}
 

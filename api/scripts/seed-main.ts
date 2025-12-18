@@ -36,6 +36,17 @@ const TEAM_NAMES = [
     'Leeds Wolves', 'Newcastle Sharks', 'Bristol Bears', 'Sheffield Steelers'
 ];
 
+const TEAM_IDS = [
+    '4ea9e0d1-f3d3-4742-9000-132ed2b31f29', // Manchester Dragons
+    '25119a5e-31a5-4feb-ad7a-76b684d97045', // Sheffield Steelers
+    '3c145e10-fe6f-41ca-b4a7-e32511b228a6', // Bristol Bears
+    'b762d45f-f5a2-40fd-9b8e-91096cbbd55e', // Newcastle Sharks
+    '212e8d48-4859-448d-87f5-563bc6183e42', // Leeds Wolves
+    '17298712-aeb7-4685-aa4c-442cad956c78', // Birmingham Lions
+    'a1b2c3d4-e5f6-4a7b-8c9d-e0f1a2b3c4d5',
+    'f6e5d4c3-b2a1-4f0e-9d8c-7b6a5e4d3c2b',
+];
+
 // Positions distribution for 16 players: 2 GK, 14 Outfield
 const TEAM_ROSTER_SIZE = 16;
 const GK_COUNT = 2;
@@ -219,7 +230,7 @@ async function createTestData() {
         let adminUser = await userRepo.findOneBy({ email: adminEmail });
 
         if (!adminUser) {
-            const hashedPassword = await argon2.hash('123456');
+            const hashedPassword = await argon2.hash('Test123456!');
             adminUser = new UserEntity({
                 username: 'admin',
                 email: adminEmail,
@@ -227,10 +238,9 @@ async function createTestData() {
                 nickname: 'Admin Manager',
                 bio: 'System Administrator',
                 supporterLevel: 99,
-                // role: 'ADMIN', // Removed as UserEntity does not have this field
             });
             await userRepo.save(adminUser);
-            console.log(`   ✓ Admin user created: ${adminEmail} / 123456`);
+            console.log(`   ✓ Admin user created: ${adminEmail} / Test123456!`);
         } else {
             console.log(`   ⊙ Admin user already exists`);
         }
@@ -238,17 +248,19 @@ async function createTestData() {
         // 2. Create Elite League
         console.log('\n🏆 Creating Elite League...');
         const leagueName = 'Elite League';
-        let league = await leagueRepo.findOneBy({ name: leagueName });
+        const leagueId = 'ae18f738-ad83-4038-ae9d-af5dd773c0dc';
+        let league = await leagueRepo.findOneBy({ id: leagueId as any });
 
         if (!league) {
             league = new LeagueEntity({
+                id: leagueId as any,
                 name: leagueName,
                 tier: 1,
                 division: 1,
                 status: 'active',
             });
             await leagueRepo.save(league);
-            console.log(`   ✓ Created league: ${leagueName}`);
+            console.log(`   ✓ Created league: ${leagueName} (${leagueId})`);
         } else {
             console.log(`   ⊙ League already exists: ${leagueName}`);
         }
@@ -258,27 +270,26 @@ async function createTestData() {
         const createdTeams: TeamEntity[] = [];
 
         for (let i = 0; i < 8; i++) {
-            // Check if team exists or create new attached to admin (or dummy users)
-            // For simplicity, we attach all to admin if no other users, OR create dummy users.
-            // Requirement says "8 teams". We will create dummy users for them to simulate real players.
-            const ownerEmail = `manager${i + 1}@goalxi.com`;
+            const ownerEmail = `testuser${i + 1}@goalxi.com`;
             let owner = await userRepo.findOneBy({ email: ownerEmail });
 
             if (!owner) {
-                const pw = await argon2.hash('123456');
+                const pw = await argon2.hash('Test123456!');
                 owner = await userRepo.save(new UserEntity({
-                    username: `manager${i + 1}`,
+                    username: `testuser${i + 1}`,
                     email: ownerEmail,
                     password: pw,
-                    nickname: `Manager ${i + 1}`,
+                    nickname: `Test Manager ${i + 1}`,
                 }));
             }
 
             const teamName = TEAM_NAMES[i] || `Team ${i + 1}`;
-            let team = await teamRepo.findOneBy({ userId: owner.id });
+            const teamId = TEAM_IDS[i];
+            let team = await teamRepo.findOneBy({ id: teamId as any });
 
             if (!team) {
                 team = new TeamEntity({
+                    id: teamId as any,
                     name: teamName,
                     userId: owner.id,
                     leagueId: league!.id,
@@ -290,8 +301,12 @@ async function createTestData() {
 
                 // Initialize Finances
                 await financeRepo.save(new FinanceEntity({ teamId: team.id, balance: 100000000 }));
-                console.log(`   ✓ Created team: ${teamName}`);
+                console.log(`   ✓ Created team: ${teamName} (${teamId})`);
             } else {
+                // Ensure team is linked to correct user and league
+                team.userId = owner.id;
+                team.leagueId = league!.id;
+                await teamRepo.save(team);
                 console.log(`   ⊙ Team already exists: ${teamName}`);
             }
             createdTeams.push(team);
@@ -340,14 +355,27 @@ async function createTestData() {
 
         // 5. Generate Match Schedule
         console.log('\n📅 Generating Match Schedule...');
-        // Clear existing matches for this league/season to prevent duplicates if re-running
-        // await matchRepo.delete({ leagueId: league!.id, season: 1 }); // Optional: Dangerous loop if data exists
-
-        // Always regenerate schedule to ensure correctness
+        // Clear existing matches for this league/season to prevent duplicates
         await matchRepo.delete({ leagueId: league!.id, season: 1 });
+
         const schedule = generateRoundRobinSchedule(createdTeams, 1, league!.id);
-        await matchRepo.save(schedule);
-        console.log(`   ✓ Scheduled ${schedule.length} matches for Season 1 (Regenerated)`);
+
+        // Before saving, ensure all team IDs are valid in the DB context
+        // and add some randomness to match times
+        const finalSchedule = schedule.map(match => {
+            const baseDate = new Date(match.scheduledAt!);
+            // Randomly offset time by +/- 2 hours to look more dynamic
+            const offsetMinutes = Math.floor(Math.random() * 240) - 120;
+            baseDate.setMinutes(baseDate.getMinutes() + offsetMinutes);
+
+            return matchRepo.create({
+                ...match,
+                scheduledAt: baseDate,
+            });
+        });
+
+        await matchRepo.save(finalSchedule);
+        console.log(`   ✓ Scheduled ${finalSchedule.length} matches for Season 1 (Regenerated)`);
 
         // 6. Create Initial Standings
         console.log('\n📊 Creating Initial Standings...');
@@ -355,12 +383,12 @@ async function createTestData() {
         // Clear existing standings
         await standingRepo.delete({ leagueId: league!.id, season: 1 });
 
-        const standings = createdTeams.map(team => {
+        const standings = createdTeams.map((team, idx) => {
             return standingRepo.create({
                 leagueId: league!.id,
                 teamId: team.id,
                 season: 1,
-                position: 0, // Will be updated by service/scheduler later
+                position: idx + 1,
                 points: 0,
                 goalsFor: 0,
                 goalsAgainst: 0,
