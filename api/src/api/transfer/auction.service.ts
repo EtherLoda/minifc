@@ -1,7 +1,7 @@
 import { Uuid } from '@/common/types/common.type';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import {
     AuctionEntity,
     AuctionStatus,
@@ -17,7 +17,7 @@ import {
 import { FinanceService } from '../finance/finance.service';
 import { CreateAuctionReqDto } from './dto/create-auction.req.dto';
 import { PlaceBidReqDto } from './dto/place-bid.req.dto';
-import { AUCTION_CONFIG } from './auction.constants';
+import { AUCTION_CONFIG, calculateMinBidIncrement } from './auction.constants';
 
 @Injectable()
 export class AuctionService {
@@ -35,11 +35,30 @@ export class AuctionService {
     ) { }
 
     async findAllActive() {
-        return this.auctionRepo.find({
+        const auctions = await this.auctionRepo.find({
             where: { status: AuctionStatus.ACTIVE },
             relations: ['player', 'team', 'currentBidder'],
             order: { expiresAt: 'ASC' },
         });
+
+        // Enrich bidHistory with team names
+        for (const auction of auctions) {
+            if (auction.bidHistory && auction.bidHistory.length > 0) {
+                const teamIds = [...new Set(auction.bidHistory.map((bid: any) => bid.teamId))];
+                const teams = await this.teamRepo.find({
+                    where: { id: In(teamIds) },
+                    select: ['id', 'name'],
+                });
+                const teamMap = new Map(teams.map(t => [t.id, t.name]));
+
+                auction.bidHistory = auction.bidHistory.map((bid: any) => ({
+                    ...bid,
+                    teamName: teamMap.get(bid.teamId) || 'Unknown Team',
+                }));
+            }
+        }
+
+        return auctions;
     }
 
     async createAuction(userId: Uuid, dto: CreateAuctionReqDto): Promise<AuctionEntity> {
@@ -96,10 +115,14 @@ export class AuctionService {
             const bidderTeam = await manager.findOne(TeamEntity, { where: { userId } });
             if (!bidderTeam) throw new NotFoundException('Bidder team not found');
 
-            const auction = await auctionRepo.findOne({
-                where: { id: auctionId },
-                relations: ['team', 'player'],
-            });
+            // Use pessimistic lock (SELECT FOR UPDATE) to prevent concurrent bid conflicts
+            const auction = await manager
+                .createQueryBuilder(AuctionEntity, 'auction')
+                .where('auction.id = :id', { id: auctionId })
+                .setLock('pessimistic_write')
+                .leftJoinAndSelect('auction.team', 'team')
+                .leftJoinAndSelect('auction.player', 'player')
+                .getOne();
             if (!auction) throw new NotFoundException('Auction not found');
             if (auction.status !== AuctionStatus.ACTIVE) throw new BadRequestException('Auction is not active');
             if (auction.teamId === bidderTeam.id) throw new BadRequestException('Cannot bid on your own auction');
@@ -115,7 +138,15 @@ export class AuctionService {
             }
 
             // Regular bid validation
-            const minBid = auction.currentPrice + AUCTION_CONFIG.MIN_BID_INCREMENT;
+            // Check if this is the first bid (no bid history or currentPrice equals startPrice with no bids)
+            const hasBids = auction.bidHistory && auction.bidHistory.length > 0;
+            const isFirstBid = !hasBids || (auction.currentPrice === auction.startPrice && !hasBids);
+            
+            // For first bid, minimum is startPrice; for subsequent bids, add increment
+            const minBid = isFirstBid 
+                ? auction.startPrice 
+                : auction.currentPrice + calculateMinBidIncrement(auction.currentPrice);
+            
             if (dto.amount < minBid) {
                 throw new BadRequestException(`Minimum bid is ${minBid}`);
             }
@@ -154,10 +185,14 @@ export class AuctionService {
             const buyerTeam = await manager.findOne(TeamEntity, { where: { userId } });
             if (!buyerTeam) throw new NotFoundException('Buyer team not found');
 
-            const auction = await manager.findOne(AuctionEntity, {
-                where: { id: auctionId },
-                relations: ['team', 'player'],
-            });
+            // Use pessimistic lock (SELECT FOR UPDATE) to prevent concurrent buyout conflicts
+            const auction = await manager
+                .createQueryBuilder(AuctionEntity, 'auction')
+                .where('auction.id = :id', { id: auctionId })
+                .setLock('pessimistic_write')
+                .leftJoinAndSelect('auction.team', 'team')
+                .leftJoinAndSelect('auction.player', 'player')
+                .getOne();
             if (!auction) throw new NotFoundException('Auction not found');
             if (auction.status !== AuctionStatus.ACTIVE) throw new BadRequestException('Auction is not active');
             if (auction.teamId === buyerTeam.id) throw new BadRequestException('Cannot buy your own auction');

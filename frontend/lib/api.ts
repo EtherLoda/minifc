@@ -16,7 +16,6 @@ export interface Player {
     id: string;
     teamId: string;
     name: string;
-    position: string;
     overall: number;
     isGoalkeeper: boolean;
     age: number;
@@ -262,6 +261,37 @@ export const api = {
 
     // Transfer/Auction
     getAuctions: () => fetchJson<Auction[]>('/transfer/auction'),
+    getAuctionByPlayerId: async (playerId: string) => {
+        try {
+            const auctions = await fetchJson<Auction[]>('/transfer/auction');
+            return auctions.find(a => a.player.id === playerId) || null;
+        } catch (error: any) {
+            // In server components, authentication may not be available
+            // Return null instead of throwing to allow graceful degradation
+            const errorMessage = error?.message || String(error) || '';
+            const errorString = JSON.stringify(error);
+            const errorLower = errorMessage.toLowerCase();
+            // #region agent log
+            if (typeof window !== 'undefined') {
+                fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/api.ts:271',message:'getAuctionByPlayerId catch block',data:{playerId,errorMessage,errorString:errorString.substring(0,200),has401:errorMessage.includes('401'),hasUnauthorized:errorMessage.includes('Unauthorized')},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'D'})}).catch(()=>{});
+            }
+            // #endregion
+            // Check for 401/Unauthorized in multiple ways (case-insensitive)
+            if (errorMessage.includes('401') || 
+                errorMessage.includes('Unauthorized') || 
+                errorLower.includes('401') ||
+                errorLower.includes('unauthorized') ||
+                errorString.includes('401') ||
+                errorString.includes('Unauthorized') ||
+                error?.status === 401 ||
+                error?.response?.status === 401) {
+                // Silently return null for 401 errors in server components
+                return null;
+            }
+            // Re-throw other errors
+            throw error;
+        }
+    },
     placeBid: (auctionId: string, amount: number) =>
         fetchJson<Auction>(`/transfer/auction/${auctionId}/bid`, {
             method: 'POST',

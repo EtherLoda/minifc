@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { MiniPlayer } from '@/components/MiniPlayer';
 import { generateAppearance } from '@/utils/playerUtils';
-import { ArrowRight, TrendingUp, Calendar, AlertCircle, DollarSign, Trophy } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, Calendar, AlertCircle, DollarSign, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
-import { api, Match, Player, FinanceState } from '@/lib/api';
+import { api, Match, Player, FinanceState, Transaction } from '@/lib/api';
 import { Skeleton } from '@/components/ui/SkeletonLoader';
+import { clsx } from 'clsx';
 
 export default function AssistantBriefing() {
     const { user } = useAuth();
     const [balance, setBalance] = useState<number | null>(null);
+    const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
     const [nextMatch, setNextMatch] = useState<Match | null>(null);
     const [topPlayers, setTopPlayers] = useState<Player[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,14 +28,20 @@ export default function AssistantBriefing() {
             try {
                 const results = await Promise.allSettled([
                     api.getFinanceBalance(),
+                    api.getTransactions(undefined, undefined), // Get recent transactions
                     api.getMatches(undefined, 1, user.teamId),
                     api.getPlayers(user.teamId)
                 ]);
 
-                const [financeRes, matchesRes, playersRes] = results;
+                const [financeRes, transactionsRes, matchesRes, playersRes] = results;
 
                 if (financeRes.status === 'fulfilled') {
                     setBalance(financeRes.value.balance);
+                }
+
+                if (transactionsRes.status === 'fulfilled') {
+                    // Get last 3 transactions
+                    setRecentTransactions(transactionsRes.value.slice(0, 3));
                 }
 
                 if (matchesRes.status === 'fulfilled' && matchesRes.value) {
@@ -197,16 +205,51 @@ export default function AssistantBriefing() {
                         <span className="text-xs text-slate-500">Budget</span>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         <div className="text-3xl font-black italic text-emerald-900 dark:text-white tracking-tighter">
                             {balance !== null ? formatCurrency(balance) : '---'}
                         </div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                            Your club's current treasury. Keep an eye on wages and bonuses.
-                        </p>
+                        
+                        {/* Recent Transactions Summary */}
+                        {recentTransactions.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-emerald-900/20">
+                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                    Recent Activity
+                                </div>
+                                {recentTransactions.map((tx) => {
+                                    const isIncome = tx.amount > 0;
+                                    return (
+                                        <div key={tx.id} className="flex items-center justify-between text-xs">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                {isIncome ? (
+                                                    <TrendingUp size={12} className="text-emerald-500 flex-shrink-0" />
+                                                ) : (
+                                                    <TrendingDown size={12} className="text-rose-500 flex-shrink-0" />
+                                                )}
+                                                <span className="text-slate-600 dark:text-slate-400 truncate font-medium">
+                                                    {tx.type.replace(/_/g, ' ').substring(0, 15)}
+                                                </span>
+                                            </div>
+                                            <span className={clsx(
+                                                "font-black text-[10px] tabular-nums flex-shrink-0 ml-2",
+                                                isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"
+                                            )}>
+                                                {isIncome ? '+' : ''}{formatCurrency(tx.amount)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {recentTransactions.length === 0 && (
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                                Your club's current treasury. Keep an eye on wages and bonuses.
+                            </p>
+                        )}
                     </div>
 
-                    <Link href="/club/finance" className="mt-8 flex items-center gap-1 text-xs font-bold text-slate-400 group-hover:text-emerald-500 transition-colors">
+                    <Link href="/club/finance" className="mt-6 flex items-center gap-1 text-xs font-bold text-slate-400 group-hover:text-emerald-500 transition-colors">
                         View Detailed Financials <ArrowRight size={12} />
                     </Link>
                 </div>

@@ -118,10 +118,45 @@ export class MatchService {
 
         const matchIds = matches.map((m) => m.id);
         if (matchIds.length > 0) {
-            const tactics = await this.tacticsRepository.find({
-                where: { matchId: In(matchIds) },
-                select: ['matchId', 'teamId'],
-            });
+            let tactics;
+            
+            // Optimize: If season is provided, query all tactics for that season at once
+            // instead of just the current page's matchIds
+            if (season) {
+                const tacticsQuery = this.tacticsRepository
+                    .createQueryBuilder('tactics')
+                    .innerJoin('tactics.match', 'match')
+                    .where('match.season = :season', { season })
+                    .select(['tactics.matchId', 'tactics.teamId']);
+                
+                // Apply additional filters if they exist
+                if (leagueId) {
+                    let actualLeagueId = leagueId;
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    if (!uuidRegex.test(leagueId)) {
+                        const name = leagueId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                        const league = await LeagueEntity.findOne({ where: { name } });
+                        if (league) {
+                            actualLeagueId = league.id;
+                        } else {
+                            actualLeagueId = '00000000-0000-0000-0000-000000000000';
+                        }
+                    }
+                    tacticsQuery.andWhere('match.leagueId = :leagueId', { leagueId: actualLeagueId });
+                }
+                
+                if (teamId) {
+                    tacticsQuery.andWhere('(match.homeTeamId = :teamId OR match.awayTeamId = :teamId)', { teamId });
+                }
+                
+                tactics = await tacticsQuery.getMany();
+            } else {
+                // Fallback to original query if no season filter
+                tactics = await this.tacticsRepository.find({
+                    where: { matchId: In(matchIds) },
+                    select: ['matchId', 'teamId'],
+                });
+            }
 
             dtos.forEach((dto) => {
                 dto.homeTacticsSet = tactics.some(

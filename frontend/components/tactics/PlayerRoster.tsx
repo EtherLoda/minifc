@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Player } from '@/lib/api';
 import { Search } from 'lucide-react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance } from '@/utils/playerUtils';
+import { generateAppearance, getPlayerPosition, getPositionFromGoalkeeper, convertAppearance } from '@/utils/playerUtils';
 import { AbilityStars } from '@/components/ui/AbilityStars';
 
 interface PlayerRosterProps {
@@ -27,7 +27,8 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
 
     const filteredPlayers = players.filter(player => {
         const matchesSearch = (player.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-        const matchesPosition = positionFilter === 'all' || getPositionCategory(player.position) === positionFilter;
+        const playerPos = getPlayerPosition(player);
+        const matchesPosition = positionFilter === 'all' || getPositionCategory(playerPos) === positionFilter;
         return matchesSearch && matchesPosition;
     });
 
@@ -99,7 +100,7 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
                     <>
                         {/* Available Players */}
                         {availablePlayers.map(player => {
-                            const appearance = generateAppearance(player.id);
+                            const appearance = convertAppearance(player.appearance) || generateAppearance(player.id);
 
                             const skills = player.currentSkills || {};
 
@@ -131,7 +132,7 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
                                                     <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 dark:bg-emerald-900/40 relative js-avatar-drag-target">
                                                         <MiniPlayer
                                                             appearance={appearance}
-                                                            position={player.position as any}
+                                                            position={getPositionFromGoalkeeper(player.isGoalkeeper)}
                                                             size={64}
                                                         />
                                                     </div>
@@ -139,7 +140,7 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
                                                 <div className="px-2.5 py-1 rounded text-xs font-black uppercase tracking-wider
                                                     bg-slate-100 text-slate-600
                                                     dark:bg-emerald-500/10 dark:text-emerald-400">
-                                                    {player.position}
+                                                    {getPlayerPosition(player)}
                                                 </div>
                                             </div>
 
@@ -152,7 +153,7 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
                                                             {player.name}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <AbilityStars currentSkills={player.currentSkills} isGoalkeeper={player.position === 'GK'} size="sm" />
+                                                            <AbilityStars currentSkills={player.currentSkills} isGoalkeeper={player.isGoalkeeper} size="sm" />
                                                         </div>
                                                     </div>
                                                     <div className="text-3xl font-black leading-none text-slate-300 dark:text-emerald-800 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
@@ -242,13 +243,13 @@ export function PlayerRoster({ players, assignedPlayerIds, onDragStart }: Player
                                             <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0 border border-slate-300 dark:border-slate-700 js-avatar-drag-target">
                                                 <MiniPlayer
                                                     appearance={appearance}
-                                                    position={player.position as any}
+                                                    position={getPositionFromGoalkeeper(player.isGoalkeeper)}
                                                     size={40}
                                                 />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{player.name}</div>
-                                                <div className="text-xs text-slate-500 font-mono">{player.position}</div>
+                                                <div className="text-xs text-slate-500 font-mono">{getPlayerPosition(player)}</div>
                                             </div>
                                             <div className="text-lg font-black text-slate-300 dark:text-slate-600">{player.overall}</div>
                                         </div>

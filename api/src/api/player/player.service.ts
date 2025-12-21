@@ -242,7 +242,6 @@ export class PlayerService {
             ageDays: days,
             appearance: player.appearance,
             isGoalkeeper: player.isGoalkeeper,
-            position: player.position,
             overall: this.calculateOverall(player.currentSkills),
             onTransfer: player.onTransfer,
             currentSkills: player.currentSkills,

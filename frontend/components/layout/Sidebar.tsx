@@ -43,6 +43,7 @@ export default function Sidebar() {
                 { label: 'Club Center', href: '/club', icon: Landmark },
                 { label: 'Manager Profile', href: '/manager', icon: Briefcase },
                 { label: 'Facilities', href: '/stadium', icon: Building2 },
+                { label: 'Finance', href: '/club/finance', icon: Landmark },
             ]
         },
         {

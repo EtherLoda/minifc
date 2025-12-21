@@ -1,5 +1,7 @@
+'use client';
+
 import React from 'react';
-import { Player } from '@/lib/api';
+import { Player, api, Auction } from '@/lib/api';
 import { clsx } from 'clsx';
 import Link from 'next/link';
 import { MiniPlayer } from '@/components/MiniPlayer';
@@ -7,8 +9,9 @@ import { AbilityStars } from '@/components/ui/AbilityStars';
 import { ListPlayerDialog } from '@/components/transfer/ListPlayerDialog';
 import { useAuth } from '@/components/auth/AuthContext';
 import { Tag, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PlayerAppearance, Position } from '@/types/player';
+import { convertAppearance, generateAppearance, getPositionFromGoalkeeper } from '@/utils/playerUtils';
 
 interface RosterTableProps {
     players: Player[];
@@ -17,9 +20,35 @@ interface RosterTableProps {
 export function RosterTable({ players }: RosterTableProps) {
     const { user } = useAuth();
     const [listingPlayerId, setListingPlayerId] = useState<string | null>(null);
+    const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
+    const [loadingAuctions, setLoadingAuctions] = useState(true);
 
     // Check if these are the user's players
     const isOwnSquad = players.length > 0 && players[0].teamId === user?.teamId;
+
+    // Fetch active auctions to check if players are listed
+    useEffect(() => {
+        const fetchAuctions = async () => {
+            if (!isOwnSquad) {
+                setLoadingAuctions(false);
+                return;
+            }
+            try {
+                const auctions = await api.getAuctions();
+                setActiveAuctions(auctions.filter(a => a.status === 'ACTIVE'));
+            } catch (error) {
+                console.error('Failed to fetch auctions:', error);
+            } finally {
+                setLoadingAuctions(false);
+            }
+        };
+        fetchAuctions();
+    }, [isOwnSquad]);
+
+    // Check if player is in active auction
+    const isPlayerInAuction = (playerId: string): boolean => {
+        return activeAuctions.some(auction => auction.player.id === playerId);
+    };
 
     // Sort: Goalkeepers first, then by name
     const sortedPlayers = [...players].sort((a, b) => {
@@ -123,23 +152,10 @@ export function RosterTable({ players }: RosterTableProps) {
         );
     };
 
-    // Generate appearance for players (placeholder - you might want to store this in DB)
-    // Generate appearance for players
-    const getPlayerAppearance = (index: number) => ({
-        skinTone: ['#8D5524', '#C68642', '#E0AC69', '#F4C2A5', '#F4C2A5'][index % 5] as any, // Cast to SkinTone
-        hairColor: ['#000000', '#3B2414', '#8B4513', '#DAA520', '#FF6347'][index % 5],
-        hairStyle: ['short', 'mohawk', 'buzz', 'short', 'messy'][index % 5] as any,
-        bodyType: 'normal' as const,
-        jerseyColorPrimary: '#10b981',
-        jerseyColorSecondary: '#ffffff',
-        accessory: 'none' as const,
-        // Legacy support if MiniPlayer uses nested jersey still
-        jersey: {
-            primary: '#10b981',
-            secondary: '#ffffff',
-            number: (index + 1).toString()
-        }
-    });
+    // Get player appearance from data or generate fallback
+    const getPlayerAppearance = (player: Player): PlayerAppearance => {
+        return convertAppearance(player.appearance) || generateAppearance(player.id);
+    };
 
     return (
         <div className="relative overflow-hidden rounded-xl border transition-all duration-300
@@ -187,8 +203,8 @@ export function RosterTable({ players }: RosterTableProps) {
 
                                         <div className="relative z-10 filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:drop-shadow-[0_0_25px_rgba(16,185,129,0.6)] transition-all scale-110">
                                             <MiniPlayer
-                                                appearance={getPlayerAppearance(index)}
-                                                position={player.isGoalkeeper ? 'GK' : 'FWD'}
+                                                appearance={getPlayerAppearance(player)}
+                                                position={getPositionFromGoalkeeper(player.isGoalkeeper)}
                                                 size={120}
                                             />
                                         </div>
@@ -254,21 +270,22 @@ export function RosterTable({ players }: RosterTableProps) {
                                     {renderPlayerSkills(player)}
 
                                     {/* Actions */}
-                                    {isOwnSquad && !player.onTransfer && (
+                                    {isOwnSquad && !isPlayerInAuction(player.id) && !player.onTransfer && (
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setListingPlayerId(player.id);
                                             }}
-                                            className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all font-bold text-xs uppercase tracking-widest group/btn"
+                                            disabled={loadingAuctions}
+                                            className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all font-bold text-xs uppercase tracking-widest group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Tag size={14} className="group-hover/btn:rotate-12 transition-transform" />
                                             LIST ON MARKET
                                         </button>
                                     )}
 
-                                    {isOwnSquad && player.onTransfer && (
+                                    {(isOwnSquad && (isPlayerInAuction(player.id) || player.onTransfer)) && (
                                         <div className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-widest">
                                             <Clock size={14} />
                                             ON AUCTION
@@ -286,9 +303,16 @@ export function RosterTable({ players }: RosterTableProps) {
                 <ListPlayerDialog
                     playerId={listingPlayerId}
                     onClose={() => setListingPlayerId(null)}
-                    onSuccess={() => {
+                    onSuccess={async () => {
                         setListingPlayerId(null);
-                        // Optional: refresh page or state
+                        // Refresh auctions list to update player status
+                        try {
+                            const auctions = await api.getAuctions();
+                            setActiveAuctions(auctions.filter(a => a.status === 'ACTIVE'));
+                        } catch (error) {
+                            console.error('Failed to refresh auctions:', error);
+                        }
+                        // Refresh page to update player.onTransfer status
                         window.location.reload();
                     }}
                 />

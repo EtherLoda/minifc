@@ -13,7 +13,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance, mapPosition } from '@/utils/playerUtils';
+import { generateAppearance, getPositionFromGoalkeeper, getPlayerPosition, convertAppearance } from '@/utils/playerUtils';
 import { clsx } from 'clsx';
 import { useNotification } from '@/components/ui/NotificationContext';
 import { Clock } from 'lucide-react';
@@ -29,6 +29,7 @@ export function AuctionDetailsDialog({ auction, onClose, onUpdate }: AuctionDeta
     const [bidAmount, setBidAmount] = useState<number>(auction.currentPrice + 1000000); // Default +1M
     const [loading, setLoading] = useState(false);
     const [timeLeft, setTimeLeft] = useState<string>('');
+    const [showBuyoutConfirm, setShowBuyoutConfirm] = useState(false);
 
     useEffect(() => {
         if (auction.status !== 'ACTIVE') return;
@@ -76,10 +77,11 @@ export function AuctionDetailsDialog({ auction, onClose, onUpdate }: AuctionDeta
     };
 
     const handleBuyout = async () => {
-        if (!confirm(`Are you sure you want to buy out this player for ${new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(auction.buyoutPrice)}?`)) {
-            return;
-        }
+        setShowBuyoutConfirm(true);
+    };
 
+    const confirmBuyout = async () => {
+        setShowBuyoutConfirm(false);
         setLoading(true);
         try {
             await api.buyoutAuction(auction.id);
@@ -118,8 +120,8 @@ export function AuctionDetailsDialog({ auction, onClose, onUpdate }: AuctionDeta
                     <div className="flex items-center gap-6 mb-8 mt-4 md:mt-0">
                         <div className="w-24 h-24 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/20 rounded-2xl flex items-center justify-center p-2">
                             <MiniPlayer
-                                appearance={auction.player.appearance || generateAppearance(auction.player.id)}
-                                position={mapPosition(auction.player.position)}
+                                appearance={convertAppearance(auction.player.appearance) || generateAppearance(auction.player.id)}
+                                position={getPositionFromGoalkeeper(auction.player.isGoalkeeper)}
                                 size={80}
                             />
                         </div>
@@ -129,7 +131,7 @@ export function AuctionDetailsDialog({ auction, onClose, onUpdate }: AuctionDeta
                             </h2>
                             <div className="flex items-center gap-3">
                                 <span className="px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-black italic">
-                                    {auction.player.position}
+                                    {getPlayerPosition(auction.player)}
                                 </span>
                                 <span className="text-sm font-bold text-emerald-500 uppercase tracking-widest">
                                     Overall {auction.player.overall}
@@ -262,6 +264,113 @@ export function AuctionDetailsDialog({ auction, onClose, onUpdate }: AuctionDeta
                     </div>
                 </div>
             </div>
+
+            {/* Buyout Confirmation Dialog */}
+            {showBuyoutConfirm && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="relative w-full max-w-md bg-white dark:bg-black/90 rounded-2xl border-2 border-emerald-500/50 shadow-2xl p-6 space-y-6">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowBuyoutConfirm(false)}
+                            className="absolute top-4 right-4 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <X size={20} className="text-slate-500" />
+                        </button>
+
+                        {/* Header */}
+                        <div className="text-center space-y-2">
+                            <div className="w-16 h-16 mx-auto bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
+                                <Zap size={32} className="text-emerald-500" fill="currentColor" />
+                            </div>
+                            <h3 className="text-2xl font-black italic text-slate-900 dark:text-white uppercase">
+                                Instant Buyout
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Confirm your purchase
+                            </p>
+                        </div>
+
+                        {/* Player Info */}
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-emerald-950/40 dark:to-emerald-900/20 flex items-center justify-center border border-emerald-500/20">
+                                    <MiniPlayer
+                                        appearance={convertAppearance(auction.player.appearance) || generateAppearance(auction.player.id)}
+                                        position={getPositionFromGoalkeeper(auction.player.isGoalkeeper)}
+                                        size={40}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="font-black text-lg text-slate-900 dark:text-white uppercase">
+                                        {auction.player.name}
+                                    </div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                        {getPlayerPosition(auction.player)} • OVR {auction.player.overall}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Price Comparison */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <span className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase">Current Price</span>
+                                <span className="text-lg font-black text-slate-700 dark:text-slate-300">
+                                    {formatCurrency(auction.currentPrice)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between p-4 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-lg border-2 border-emerald-500/30">
+                                <span className="text-base font-black text-emerald-600 dark:text-emerald-400 uppercase">Buyout Price</span>
+                                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                                    {formatCurrency(auction.buyoutPrice)}
+                                </span>
+                            </div>
+                            {auction.buyoutPrice > auction.currentPrice && (
+                                <div className="flex items-center justify-between p-2 bg-amber-500/10 dark:bg-amber-500/5 rounded-lg border border-amber-500/20">
+                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Extra Cost</span>
+                                    <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                                        {formatCurrency(auction.buyoutPrice - auction.currentPrice)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Warning */}
+                        <div className="p-3 bg-amber-500/10 dark:bg-amber-500/5 rounded-lg border border-amber-500/20">
+                            <p className="text-xs text-amber-700 dark:text-amber-400 font-bold text-center">
+                                ⚠️ This action cannot be undone. The player will be immediately transferred to your team.
+                            </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowBuyoutConfirm(false)}
+                                className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmBuyout}
+                                disabled={loading}
+                                className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Zap size={16} fill="currentColor" />
+                                        Confirm Buyout
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -6,8 +6,14 @@ import { LoadingSpinner, LoadingOverlay } from '@/components/ui/LoadingSpinner';
 import { SkeletonCard } from '@/components/ui/SkeletonLoader';
 import { PotentialBadge, PotentialStars } from '@/components/ui/PotentialBadge';
 import { AbilityStars } from '@/components/ui/AbilityStars';
+import { SkillBars } from '@/components/ui/SkillBars';
+import { PlayerAuctionInfo } from '@/components/player/PlayerAuctionInfo';
+import { convertAppearance, generateAppearance } from '@/utils/playerUtils';
 
 async function PlayerData({ id }: { id: string }) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/players/[id]/page.tsx:12',message:'PlayerData function entry',data:{playerId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const player = await api.getPlayer(id);
     const team = await api.getTeam(player.teamId);
 
@@ -25,21 +31,8 @@ async function PlayerData({ id }: { id: string }) {
         return 'from-slate-600 to-slate-700';
     };
 
-    const playerAppearance = {
-        skinTone: '#C68642' as const, // Must match specific literal
-        hairColor: '#3b2414',
-        hairStyle: 'short' as const,
-        bodyType: 'normal' as const, // 'athletic' is not in BodyType
-        jerseyColorPrimary: '#10b981',
-        jerseyColorSecondary: '#ffffff',
-        accessory: 'none' as const,
-        // Optional properties if MiniPlayer uses them flexibility
-        jersey: {
-            primary: '#10b981',
-            secondary: '#ffffff',
-            number: '10'
-        }
-    };
+    // Get player appearance from data or generate fallback
+    const playerAppearance = convertAppearance(player.appearance) || generateAppearance(player.id);
 
     const renderAttributes = (skills: any) => {
         if (!skills) return null;
@@ -249,8 +242,15 @@ async function PlayerData({ id }: { id: string }) {
                             Player Attributes
                         </h2>
                     </div>
-                    {renderAttributes(player.currentSkills)}
+                    <SkillBars 
+                        currentSkills={player.currentSkills} 
+                        potentialSkills={player.potentialSkills}
+                        isGoalkeeper={player.isGoalkeeper}
+                    />
                 </div>
+
+                {/* Transfer Market Info - Client Component */}
+                <PlayerAuctionInfo playerId={id} />
 
                 {/* Additional Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

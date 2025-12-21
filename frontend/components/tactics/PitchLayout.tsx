@@ -3,7 +3,7 @@
 import { Player } from '@/lib/api';
 import { X } from 'lucide-react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance } from '@/utils/playerUtils';
+import { generateAppearance, getPositionFromGoalkeeper } from '@/utils/playerUtils';
 
 interface PitchLayoutProps {
     lineup: Record<string, string | null>;
@@ -115,7 +115,7 @@ export function PitchLayout({ lineup, players, onDrop, onRemove, onDragStart }: 
                                         <div className="w-16 h-16 rounded-full border-2 border-white shadow-lg bg-emerald-800 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:border-emerald-400 group-hover:ring-2 group-hover:ring-emerald-400/50 transition-all relative overflow-hidden">
                                             {appearance && (
                                                 <div className="mt-2">
-                                                    <MiniPlayer appearance={appearance} position={player.position as any} size={64} />
+                                                    <MiniPlayer appearance={appearance} position={getPositionFromGoalkeeper(player.isGoalkeeper)} size={64} />
                                                 </div>
                                             )}
 

@@ -60,9 +60,9 @@ function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function randomFloat(min: number, max: number, decimals: number = 1): number {
+function randomFloat(min: number, max: number, decimals: number = 2): number {
     const value = Math.random() * (max - min) + min;
-    return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    return parseFloat(value.toFixed(decimals));
 }
 
 function generatePlayerAppearance() {
@@ -328,13 +328,6 @@ async function createTestData() {
                 const name = randomElement(PLAYER_NAMES);
                 const age = randomInt(17, 34);
 
-                let position = 'GK';
-                if (!isGK) {
-                    if (j < 6) position = randomElement(['CB', 'LB', 'RB']);
-                    else if (j < 12) position = randomElement(['CM', 'CDM', 'CAM', 'LM', 'RM']);
-                    else position = randomElement(['ST', 'CF', 'LW', 'RW']);
-                }
-
                 const { tier, ability } = generatePlayerPotential();
                 const { current, potential } = generatePlayerAttributes(isGK, ability, age);
 
@@ -342,7 +335,6 @@ async function createTestData() {
                     name,
                     teamId: team.id,
                     isGoalkeeper: isGK,
-                    position,
                     birthday: new Date(Date.now() - (age * GAME_SETTINGS.MS_PER_YEAR) - (Math.floor(Math.random() * GAME_SETTINGS.DAYS_PER_YEAR) * 24 * 60 * 60 * 1000)),
                     isYouth: age <= 18,
                     potentialAbility: ability,
@@ -351,9 +343,9 @@ async function createTestData() {
                     appearance: generatePlayerAppearance(),
                     currentSkills: current,
                     potentialSkills: potential,
-                    experience: randomFloat(0, 10),
-                    form: randomFloat(3, 5),
-                    stamina: randomFloat(3, 5),
+                    experience: randomFloat(0, 10, 2),
+                    form: randomFloat(1.0, 5.99, 2),
+                    stamina: randomFloat(1.0, 5.99, 2),
                     onTransfer: false,
                 }));
             }

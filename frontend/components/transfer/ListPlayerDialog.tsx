@@ -5,18 +5,15 @@ import { api, Player } from '@/lib/api';
 import { useAuth } from '@/components/auth/AuthContext';
 import {
     X,
-    ArrowRight,
     DollarSign,
-    Clock,
     Briefcase,
     Loader2,
-    Search,
-    ChevronRight,
     Trophy,
-    Zap
+    Zap,
+    Coins
 } from 'lucide-react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance, mapPosition } from '@/utils/playerUtils';
+import { generateAppearance, getPositionFromGoalkeeper, getPlayerPosition, convertAppearance } from '@/utils/playerUtils';
 import { clsx } from 'clsx';
 import { useNotification } from '@/components/ui/NotificationContext';
 
@@ -29,42 +26,46 @@ interface ListPlayerDialogProps {
 export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDialogProps) {
     const { user } = useAuth();
     const { showNotification } = useNotification();
-    const [players, setPlayers] = useState<Player[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
 
     // Form States
     const [startPrice, setStartPrice] = useState<number>(0);
     const [buyoutPrice, setBuyoutPrice] = useState<number>(0);
-    const [duration, setDuration] = useState<number>(24);
+    const [duration, setDuration] = useState<number>(48);
 
     useEffect(() => {
-        const fetchPlayers = async () => {
+        const fetchPlayer = async () => {
             if (!user?.teamId) return;
+            if (!playerId) {
+                showNotification({ message: 'No player selected. Please select a player from your squad first.', type: 'error' });
+                setLoading(false);
+                onClose();
+                return;
+            }
             try {
                 const data = await api.getPlayers(user.teamId);
-                setPlayers(data.data);
-
-                // Auto-select if playerId is provided
-                if (playerId) {
-                    const player = data.data.find(p => p.id === playerId);
-                    if (player) {
-                        setSelectedPlayer(player);
-                        const baseValue = (player.overall ** 2) * 5000;
-                        setStartPrice(Math.floor(baseValue * 0.8));
-                        setBuyoutPrice(Math.floor(baseValue * 1.5));
-                    }
+                const player = data.data.find(p => p.id === playerId);
+                if (player) {
+                    setSelectedPlayer(player);
+                    const baseValue = (player.overall ** 2) * 5000;
+                    setStartPrice(Math.floor(baseValue * 0.8));
+                    setBuyoutPrice(Math.floor(baseValue * 1.5));
+                } else {
+                    showNotification({ message: 'Player not found', type: 'error' });
+                    onClose();
                 }
             } catch (error) {
-                console.error('Failed to fetch players:', error);
+                console.error('Failed to fetch player:', error);
+                showNotification({ message: 'Failed to load player', type: 'error' });
+                onClose();
             } finally {
                 setLoading(false);
             }
         };
-        fetchPlayers();
-    }, [user?.teamId, playerId]);
+        fetchPlayer();
+    }, [user?.teamId, playerId, onClose, showNotification]);
 
     const handleList = async () => {
         if (!selectedPlayer) return;
@@ -90,10 +91,6 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
         }
     };
 
-    const filteredPlayers = players.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-GB', {
             style: 'currency',
@@ -106,82 +103,34 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative w-full max-w-4xl bg-white dark:bg-emerald-950 border-2 border-emerald-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
-
-                {/* Left Side: Player Selection */}
-                <div className="flex-1 p-8 border-b md:border-b-0 md:border-r border-emerald-500/10 flex flex-col min-h-0">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-black italic text-emerald-900 dark:text-white uppercase tracking-tighter">
-                            SELECT PLAYER
-                        </h2>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Squad</span>
-                    </div>
-
-                    <div className="relative mb-6">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Search your squad..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-emerald-900/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-sm"
-                        />
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                        {loading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <Loader2 className="animate-spin text-emerald-500" size={32} />
-                            </div>
-                        ) : filteredPlayers.length === 0 ? (
-                            <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">No players found</div>
-                        ) : (
-                            filteredPlayers.map(player => (
-                                <button
-                                    key={player.id}
-                                    onClick={() => {
-                                        setSelectedPlayer(player);
-                                        // Set some reasonable defaults based on "value" (mocked)
-                                        const baseValue = (player.overall ** 2) * 5000;
-                                        setStartPrice(Math.floor(baseValue * 0.8));
-                                        setBuyoutPrice(Math.floor(baseValue * 1.5));
+            <div className="relative w-full max-w-2xl bg-white dark:bg-emerald-950 border-2 border-emerald-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Background Money Icon Pattern */}
+                <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.08] pointer-events-none overflow-hidden rounded-3xl">
+                    <div className="absolute inset-0">
+                        {[...Array(12)].map((_, i) => {
+                            const angle = (i * 30) % 360;
+                            const radius = 40 + (i % 3) * 20;
+                            const x = 50 + Math.cos((angle * Math.PI) / 180) * radius;
+                            const y = 50 + Math.sin((angle * Math.PI) / 180) * radius;
+                            return (
+                                <div
+                                    key={i}
+                                    className="absolute"
+                                    style={{
+                                        left: `${x}%`,
+                                        top: `${y}%`,
+                                        transform: `translate(-50%, -50%) rotate(${angle + 45}deg) scale(${0.4 + (i % 2) * 0.2})`,
                                     }}
-                                    className={clsx(
-                                        "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all group",
-                                        selectedPlayer?.id === player.id
-                                            ? "border-emerald-500 bg-emerald-500/5 shadow-sm"
-                                            : "border-transparent bg-slate-50 dark:bg-black/10 hover:border-emerald-500/30"
-                                    )}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
-                                            <MiniPlayer
-                                                appearance={player.appearance || generateAppearance(player.id)}
-                                                position={mapPosition(player.position)}
-                                                size={40}
-                                            />
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="text-sm font-black italic text-slate-900 dark:text-white uppercase leading-none mb-1 group-hover:text-emerald-500 transition-colors">
-                                                {player.name}
-                                            </div>
-                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                                {player.position} • OVR {player.overall}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={16} className={clsx(
-                                        "transition-transform",
-                                        selectedPlayer?.id === player.id ? "text-emerald-500 translate-x-1" : "text-slate-300"
-                                    )} />
-                                </button>
-                            ))
-                        )}
+                                    <Coins size={32} className="text-emerald-500" />
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Right Side: Listing Details */}
-                <div className="w-full md:w-[380px] p-8 bg-emerald-50/30 dark:bg-black/40 flex flex-col">
+                {/* Listing Details */}
+                <div className="relative z-10 w-full p-8 bg-emerald-50/30 dark:bg-black/40 flex flex-col">
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="font-black italic text-emerald-900 dark:text-white uppercase tracking-tighter text-xl">
                             LISTING DETAILS
@@ -191,15 +140,43 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
                         </button>
                     </div>
 
-                    {!selectedPlayer ? (
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
+                            <Loader2 className="animate-spin text-emerald-500 mb-4" size={48} />
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest max-w-[200px]">
+                                Loading player...
+                            </p>
+                        </div>
+                    ) : !selectedPlayer ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
                             <Briefcase size={48} className="text-slate-300 mb-4" />
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest max-w-[200px]">
-                                Select a player from your squad to get started
+                                Player not found
                             </p>
                         </div>
                     ) : (
                         <>
+                            {/* Selected Player Display */}
+                            <div className="mb-6 p-4 bg-white dark:bg-black/20 border border-emerald-500/10 rounded-xl">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 bg-white dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
+                                        <MiniPlayer
+                                            appearance={convertAppearance(selectedPlayer.appearance) || generateAppearance(selectedPlayer.id)}
+                                            position={getPositionFromGoalkeeper(selectedPlayer.isGoalkeeper)}
+                                            size={64}
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-lg font-black italic text-slate-900 dark:text-white uppercase leading-none mb-1">
+                                            {selectedPlayer.name}
+                                        </div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            {getPlayerPosition(selectedPlayer)} • OVR {selectedPlayer.overall}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="space-y-6 flex-1">
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Starting Price</label>
@@ -232,8 +209,8 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
 
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auction Duration</label>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {[2, 4, 12, 24].map(h => (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[48, 72].map(h => (
                                             <button
                                                 key={h}
                                                 onClick={() => setDuration(h)}

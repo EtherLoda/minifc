@@ -15,9 +15,9 @@ import {
     Info
 } from 'lucide-react';
 import Link from 'next/link';
-import { AuctionCard } from '@/components/transfer/AuctionCard';
-import { AuctionDetailsDialog } from '@/components/transfer/AuctionDetailsDialog';
+import { AuctionListItem } from '@/components/transfer/AuctionListItem';
 import { ListPlayerDialog } from '@/components/transfer/ListPlayerDialog';
+import { TransferMarketRulesDialog } from '@/components/transfer/TransferMarketRulesDialog';
 import { Skeleton } from '@/components/ui/SkeletonLoader';
 
 export default function TransferPage() {
@@ -27,8 +27,8 @@ export default function TransferPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'all' | 'my-bids' | 'my-listings'>('all');
-    const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
     const [isListingOpen, setIsListingOpen] = useState(false);
+    const [isRulesOpen, setIsRulesOpen] = useState(false);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -72,11 +72,6 @@ export default function TransferPage() {
             const auctionData = await api.getAuctions();
             setAuctions(auctionData);
 
-            // If an auction is selected, update it too
-            if (selectedAuction) {
-                const updated = auctionData.find(a => a.id === selectedAuction.id);
-                if (updated) setSelectedAuction(updated);
-            }
 
             const financeData = await api.getFinanceBalance();
             setBalance(financeData.balance);
@@ -118,10 +113,19 @@ export default function TransferPage() {
                         <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center border-2 border-emerald-500/40">
                             <Target size={32} className="text-emerald-500" />
                         </div>
-                        <div>
-                            <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-emerald-900 dark:text-white">
-                                TRANSFER MARKET
-                            </h1>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-emerald-900 dark:text-white">
+                                    TRANSFER MARKET
+                                </h1>
+                                <button
+                                    onClick={() => setIsRulesOpen(true)}
+                                    className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all hover:scale-110 active:scale-95"
+                                    title="View Transfer Market Rules"
+                                >
+                                    <Info size={20} className="text-emerald-600 dark:text-emerald-400" />
+                                </button>
+                            </div>
                             <p className="text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest text-xs">
                                 Global Player Auction House
                             </p>
@@ -180,11 +184,11 @@ export default function TransferPage() {
                 </div>
             </div>
 
-            {/* Market Grid */}
+            {/* Market List */}
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="space-y-4">
                     {[...Array(8)].map((_, i) => (
-                        <Skeleton key={i} className="h-[380px] rounded-2xl" />
+                        <Skeleton key={i} className="h-[140px] rounded-xl" />
                     ))}
                 </div>
             ) : filteredAuctions.length === 0 ? (
@@ -198,34 +202,32 @@ export default function TransferPage() {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="space-y-3">
                     {filteredAuctions.map((auction) => (
-                        <div key={auction.id} onClick={() => setSelectedAuction(auction)} className="cursor-pointer">
-                            <AuctionCard
-                                auction={auction}
-                                isOwnListing={auction.team?.id === user?.teamId}
-                                isWinning={auction.currentBidder?.id === user?.teamId}
-                            />
-                        </div>
+                        <AuctionListItem
+                            key={auction.id}
+                            auction={auction}
+                            isOwnListing={auction.team?.id === user?.teamId}
+                            isWinning={auction.currentBidder?.id === user?.teamId}
+                            balance={balance}
+                            onUpdate={refreshData}
+                        />
                     ))}
                 </div>
             )}
 
             {/* Modals */}
-            {selectedAuction && (
-                <AuctionDetailsDialog
-                    auction={selectedAuction}
-                    onClose={() => setSelectedAuction(null)}
-                    onUpdate={refreshData}
-                />
-            )}
-
             {isListingOpen && (
                 <ListPlayerDialog
                     onClose={() => setIsListingOpen(false)}
                     onSuccess={refreshData}
                 />
             )}
+
+            <TransferMarketRulesDialog
+                isOpen={isRulesOpen}
+                onClose={() => setIsRulesOpen(false)}
+            />
         </div>
     );
 }
