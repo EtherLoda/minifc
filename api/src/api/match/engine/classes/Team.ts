@@ -5,16 +5,20 @@ import { Player } from '../../../../types/player.types';
 
 export class Team {
     private snapshot: TeamSnapshot | null = null;
-    public playerFitness: Map<string, number> = new Map();
+    public playerFitness: Float32Array;
+    private playerToIdx: Map<string, number> = new Map();
 
     constructor(
         public name: string,
         public players: TacticalPlayer[]
     ) {
+        this.playerFitness = new Float32Array(players.length);
         // Initialize Fitness to starting Stamina
-        for (const p of players) {
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
             const player = p.player as Player;
-            this.playerFitness.set(player.id, player.currentStamina);
+            this.playerToIdx.set(player.id, i);
+            this.playerFitness[i] = player.currentStamina;
             p.isOriginal = true;
         }
     }
@@ -23,11 +27,12 @@ export class Team {
      * Updates player fitness levels based on minutes played.
      */
     updateCondition(minutesDelta: number, isHalfTime: boolean = false) {
-        for (const p of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const p = this.players[i];
             if (p.isSentOff) continue;
 
             const player = p.player as Player;
-            let current = this.playerFitness.get(player.id) || 3.0;
+            let current = this.playerFitness[i];
 
             // Decay
             if (minutesDelta > 0) {
@@ -44,7 +49,7 @@ export class Team {
             // Floor at 1.0
             if (current < 1.0) current = 1.0;
 
-            this.playerFitness.set(player.id, current);
+            this.playerFitness[i] = current;
         }
     }
 
@@ -59,11 +64,12 @@ export class Team {
             right: { attack: 0, defense: 0, possession: 0 }
         };
 
-        for (const p of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const p = this.players[i];
             if (p.isSentOff) continue;
 
             const player = p.player as Player;
-            const currentFit = this.playerFitness.get(player.id) || 3.0;
+            const currentFit = this.playerFitness[i];
 
             // Calculate Performance Multiplier (The "PerformanceEngine" logic)
             const multiplier = ConditionSystem.calculateMultiplier(
@@ -90,7 +96,8 @@ export class Team {
         let gkRating = 100;
         if (gk && !gk.isSentOff) {
             const player = gk.player as Player;
-            const currentFit = this.playerFitness.get(player.id) || 3.0;
+            const idx = this.playerToIdx.get(player.id)!;
+            const currentFit = this.playerFitness[idx];
             const multiplier = ConditionSystem.calculateMultiplier(
                 currentFit,
                 player.currentStamina,
@@ -112,10 +119,11 @@ export class Team {
      * Marks a player as sent off.
      */
     sendOffPlayer(playerId: string) {
-        const p = this.players.find(p => (p.player as Player).id === playerId);
-        if (p) {
+        const idx = this.playerToIdx.get(playerId);
+        if (idx !== undefined) {
+            const p = this.players[idx];
             p.isSentOff = true;
-            this.playerFitness.delete(playerId);
+            this.playerFitness[idx] = 1.0; // Minimal fitness
         }
     }
 
@@ -128,12 +136,14 @@ export class Team {
             const outPlayer = this.players[index];
             if (outPlayer.isSentOff) return; // Cannot sub out a sent off player
 
-            // Stop tracking old player energy
-            this.playerFitness.delete(outId);
-
             // Add new player
             const newPlayer = inTacticalPlayer.player as Player;
-            this.playerFitness.set(newPlayer.id, newPlayer.currentStamina || 3.0);
+
+            // Map index to new player
+            this.playerToIdx.delete(outId);
+            this.playerToIdx.set(newPlayer.id, index);
+
+            this.playerFitness[index] = newPlayer.currentStamina || 3.0;
             inTacticalPlayer.isOriginal = false;
             inTacticalPlayer.isSentOff = false;
 

@@ -63,7 +63,7 @@ export class MatchEngine {
         this.awayScore = 0;
 
         for (let i = 0; i < MOMENTS_COUNT; i++) {
-            let nextTime = Math.floor((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT));
+            let nextTime = ((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT)) | 0;
             if (nextTime <= lastTime) nextTime = lastTime + 1;
             if (nextTime > 90) nextTime = 90;
 
@@ -82,8 +82,8 @@ export class MatchEngine {
             this.awayTeam.updateCondition(delta, isHalfTime);
 
             // 3. Regular Snapshot Update (every 5 mins)
-            const currentBlock = Math.floor(this.time / 5);
-            const lastBlock = Math.floor(lastTime / 5);
+            const currentBlock = (this.time / 5) | 0;
+            const lastBlock = (lastTime / 5) | 0;
 
             if (currentBlock > lastBlock || i === 0 || isHalfTime) {
                 this.homeTeam.updateSnapshot();
@@ -108,7 +108,7 @@ export class MatchEngine {
 
         // FULL_TIME Event
         this.events.push({
-            minute: lastTime > 90 ? lastTime : 90 + Math.floor(Math.random() * 4),
+            minute: lastTime > 90 ? lastTime : (90 + (Math.random() * 4 | 0)),
             type: 'full_time',
             description: 'The referee blows the final whistle!',
             data: {
@@ -138,7 +138,7 @@ export class MatchEngine {
 
         for (let i = 0; i < MOMENTS_COUNT; i++) {
             // Time logic: 90 + ...
-            let nextTime = 90 + Math.floor((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT));
+            let nextTime = (90 + ((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT))) | 0;
             if (nextTime <= lastTime) nextTime = lastTime + 1;
             if (nextTime > 120) nextTime = 120; // Cap at 120
 
@@ -150,8 +150,8 @@ export class MatchEngine {
             this.awayTeam.updateCondition(delta);
 
             // Snapshot Update (every 5 mins)
-            const currentBlock = Math.floor(this.time / 5);
-            const lastBlock = Math.floor(lastTime / 5);
+            const currentBlock = (this.time / 5) | 0;
+            const lastBlock = (lastTime / 5) | 0;
 
             if (currentBlock > lastBlock) {
                 this.homeTeam.updateSnapshot();
@@ -263,7 +263,8 @@ export class MatchEngine {
 
     private resolveFoul() {
         const team = Math.random() < 0.5 ? this.homeTeam : this.awayTeam;
-        const player = team.players[Math.floor(Math.random() * team.players.length)];
+        const playerIdx = (Math.random() * team.players.length) | 0;
+        const player = team.players[playerIdx];
         if (!player || player.isSentOff) return;
 
         const p = player.player as Player;
@@ -359,7 +360,7 @@ export class MatchEngine {
             for (let i = 0; i < w; i++) weighted.push(p);
         }
 
-        return weighted[Math.floor(Math.random() * weighted.length)];
+        return weighted[(Math.random() * weighted.length) | 0];
     }
 
     private resolveDuel(valA: number, valB: number, k: number, offset: number): boolean {
@@ -371,14 +372,21 @@ export class MatchEngine {
 
     private changeLane() {
         const lanes: Lane[] = ['left', 'center', 'right'];
-        this.currentLane = lanes[Math.floor(Math.random() * lanes.length)];
+        this.currentLane = lanes[(Math.random() * lanes.length) | 0];
     }
 
     private generateSnapshotEvent(time: number) {
         const homeSnapshot = this.homeTeam.getSnapshot();
         const awaySnapshot = this.awayTeam.getSnapshot();
-        const homeFitness = Object.fromEntries(this.homeTeam.playerFitness);
-        const awayFitness = Object.fromEntries(this.awayTeam.playerFitness);
+
+        const mapFitness = (team: Team) => {
+            const result: Record<string, number> = {};
+            for (let i = 0; i < team.players.length; i++) {
+                const id = (team.players[i].player as Player).id;
+                result[id] = team.playerFitness[i];
+            }
+            return result;
+        };
 
         this.events.push({
             minute: time,
@@ -387,11 +395,11 @@ export class MatchEngine {
             data: {
                 home: {
                     laneStrengths: homeSnapshot?.laneStrengths,
-                    playerFitness: homeFitness
+                    playerFitness: mapFitness(this.homeTeam)
                 },
                 away: {
                     laneStrengths: awaySnapshot?.laneStrengths,
-                    playerFitness: awayFitness
+                    playerFitness: mapFitness(this.awayTeam)
                 }
             }
         });
