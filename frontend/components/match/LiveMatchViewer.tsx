@@ -4,8 +4,10 @@ import { useMatchPolling } from '@/hooks/useMatchPolling';
 import { useMatchSimulation } from '@/hooks/useMatchSimulation';
 import { MatchEvents } from '@/components/match/MatchEvents';
 import { MatchStats } from '@/components/match/MatchStats';
-import { MatchEventsResponse, MatchStatsRes } from '@/lib/api';
+import { TeamLineupView } from '@/components/match/TeamLineupView';
+import { MatchEventsResponse, MatchStatsRes, TeamSnapshot } from '@/lib/api';
 import { Play, Loader2 } from 'lucide-react';
+import { useMemo } from 'react';
 
 interface LiveMatchViewerProps {
     matchId: string;
@@ -28,15 +30,30 @@ export function LiveMatchViewer({
     initialStats,
     matchStatus,
 }: LiveMatchViewerProps) {
-    // We use useMatchPolling for regular 5-minute updates
+    // We use useMatchPolling for regular 5-second updates
     // and useMatchSimulation if we want to manually trigger/follow a simulation.
-    // However, the plan specifically asks to use the new polling hook.
     const { data: pollingData } = useMatchPolling(matchId, initialEventsData);
     const { startSimulation, isSimulating, error, data: simData } = useMatchSimulation(matchId, initialEventsData);
 
     const data = simData || pollingData || initialEventsData;
     const eventsData = data;
     const canSimulate = matchStatus === 'scheduled' || matchStatus === 'tactics_locked';
+
+    // Extract player states from the latest snapshot event
+    const { homeSnapshot, awaySnapshot } = useMemo(() => {
+        // Find the most recent snapshot event
+        const snapshotEvents = eventsData.events.filter(e => e.typeName === 'SNAPSHOT' || e.type === 'snapshot');
+        const latestSnapshot = snapshotEvents[snapshotEvents.length - 1];
+
+        if (!latestSnapshot?.data) {
+            return { homeSnapshot: null, awaySnapshot: null };
+        }
+
+        return {
+            homeSnapshot: latestSnapshot.data.home as TeamSnapshot | null,
+            awaySnapshot: latestSnapshot.data.away as TeamSnapshot | null
+        };
+    }, [eventsData.events]);
 
     return (
         <>
@@ -70,6 +87,24 @@ export function LiveMatchViewer({
                     </button>
                     {error && (
                         <p className="mt-2 text-sm text-red-500 dark:text-red-400">{error}</p>
+                    )}
+                </div>
+            )}
+
+            {/* Team Lineups */}
+            {(homeSnapshot || awaySnapshot) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {homeSnapshot && (
+                        <TeamLineupView
+                            teamName={homeSnapshot.teamName || homeTeamName}
+                            players={homeSnapshot.players || []}
+                        />
+                    )}
+                    {awaySnapshot && (
+                        <TeamLineupView
+                            teamName={awaySnapshot.teamName || awayTeamName}
+                            players={awaySnapshot.players || []}
+                        />
                     )}
                 </div>
             )}

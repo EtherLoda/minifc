@@ -491,13 +491,32 @@ export class MatchEngine {
         const homeSnapshot = this.homeTeam.getSnapshot();
         const awaySnapshot = this.awayTeam.getSnapshot();
 
-        const mapFitness = (team: Team) => {
-            const result: Record<string, number> = {};
-            for (let i = 0; i < team.players.length; i++) {
-                const id = (team.players[i].player as Player).id;
-                result[id] = team.playerFitness[i];
-            }
-            return result;
+        const mapPlayerStates = (team: Team) => {
+            return team.players
+                .filter(p => !p.isSentOff)
+                .map((tacticalPlayer, idx) => {
+                    const player = tacticalPlayer.player as Player;
+                    const currentFit = team.playerFitness[idx];
+
+                    // Calculate the same multiplier used in snapshot calculation
+                    const conditionMultiplier = ConditionSystem.calculateMultiplier(
+                        currentFit,
+                        player.currentStamina,
+                        player.form,
+                        player.experience
+                    );
+
+                    return {
+                        playerId: player.id,
+                        name: player.name,
+                        position: tacticalPlayer.positionKey,
+                        stamina: parseFloat(currentFit.toFixed(2)),
+                        form: player.form,
+                        experience: player.experience || 0,
+                        conditionMultiplier: parseFloat(conditionMultiplier.toFixed(3)),
+                        isSubstitute: tacticalPlayer.isOriginal === false
+                    };
+                });
         };
 
         this.events.push({
@@ -506,12 +525,16 @@ export class MatchEngine {
             description: 'Match Snapshot Update',
             data: {
                 home: {
+                    teamName: this.homeTeam.name,
                     laneStrengths: homeSnapshot?.laneStrengths,
-                    playerFitness: mapFitness(this.homeTeam)
+                    gkRating: homeSnapshot?.gkRating,
+                    players: mapPlayerStates(this.homeTeam)
                 },
                 away: {
+                    teamName: this.awayTeam.name,
                     laneStrengths: awaySnapshot?.laneStrengths,
-                    playerFitness: mapFitness(this.awayTeam)
+                    gkRating: awaySnapshot?.gkRating,
+                    players: mapPlayerStates(this.awayTeam)
                 }
             }
         });

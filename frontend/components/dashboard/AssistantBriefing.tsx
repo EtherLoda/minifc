@@ -151,7 +151,9 @@ export default function AssistantBriefing() {
                                 </div>
                                 <div>
                                     <div className="text-sm font-bold text-slate-900 dark:text-white">{p.name}</div>
-                                    <div className="text-xs text-emerald-500 font-bold uppercase tracking-widest">{p.position}</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {p.isGoalkeeper ? 'Goalkeeper' : 'Outfield'}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -209,7 +211,7 @@ export default function AssistantBriefing() {
                         <div className="text-3xl font-black italic text-emerald-900 dark:text-white tracking-tighter">
                             {balance !== null ? formatCurrency(balance) : '---'}
                         </div>
-                        
+
                         {/* Recent Transactions Summary */}
                         {recentTransactions.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-emerald-900/20">

@@ -178,6 +178,29 @@ export interface Tactics {
 
 // ... (api object)
 
+
+export interface PlayerState {
+    playerId: string;
+    name: string;
+    position: string;
+    stamina: number;
+    form: number;
+    experience: number;
+    conditionMultiplier: number;
+    isSubstitute: boolean;
+}
+
+export interface TeamSnapshot {
+    teamName: string;
+    laneStrengths: {
+        left: { attack: number; defense: number; possession: number };
+        center: { attack: number; defense: number; possession: number };
+        right: { attack: number; defense: number; possession: number };
+    };
+    gkRating: number;
+    players: PlayerState[];
+}
+
 export interface MatchEventsResponse {
     matchId: string;
     currentMinute: number;
@@ -273,12 +296,12 @@ export const api = {
             const errorLower = errorMessage.toLowerCase();
             // #region agent log
             if (typeof window !== 'undefined') {
-                fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/api.ts:271',message:'getAuctionByPlayerId catch block',data:{playerId,errorMessage,errorString:errorString.substring(0,200),has401:errorMessage.includes('401'),hasUnauthorized:errorMessage.includes('Unauthorized')},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'D'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'lib/api.ts:271', message: 'getAuctionByPlayerId catch block', data: { playerId, errorMessage, errorString: errorString.substring(0, 200), has401: errorMessage.includes('401'), hasUnauthorized: errorMessage.includes('Unauthorized') }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run4', hypothesisId: 'D' }) }).catch(() => { });
             }
             // #endregion
             // Check for 401/Unauthorized in multiple ways (case-insensitive)
-            if (errorMessage.includes('401') || 
-                errorMessage.includes('Unauthorized') || 
+            if (errorMessage.includes('401') ||
+                errorMessage.includes('Unauthorized') ||
                 errorLower.includes('401') ||
                 errorLower.includes('unauthorized') ||
                 errorString.includes('401') ||
