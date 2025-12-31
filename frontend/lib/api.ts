@@ -111,22 +111,44 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
         });
 
         if (!res.ok) {
-            console.error(`[API] Error ${res.status}: ${res.statusText}`);
             // Try to extract error message from response body
+            let errorData: any = {};
+            let errorMsg = `API Error: ${res.status} ${res.statusText}`;
+            
             try {
-                const errorData = await res.json();
-                console.error('[API] Error Body:', errorData);
-                const message = errorData.message || errorData.error || `API Error: ${res.status} ${res.statusText}`;
-                throw new Error(Array.isArray(message) ? message.join(', ') : message);
+                errorData = await res.json();
+                const message = errorData.message || errorData.error;
+                if (message) {
+                    errorMsg = Array.isArray(message) ? message.join(', ') : message;
+                }
             } catch (parseError) {
-                // If parsing fails, throw generic error
-                throw new Error(`API Error: ${res.status} ${res.statusText}`);
+                // Body is empty or not JSON - use default message
             }
+            
+            // Only log errors for non-404s or in development mode
+            if (res.status !== 404 || process.env.NODE_ENV === 'development') {
+                console.error(`[API] Error ${res.status}: ${res.statusText}`);
+                if (Object.keys(errorData).length > 0) {
+                    console.error('[API] Error Body:', errorData);
+                }
+            }
+            
+            // Create error with both message and status
+            const error: any = new Error(errorMsg);
+            error.status = res.status;
+            throw error;
         }
 
         return res.json();
-    } catch (error) {
-        console.error('[API] Network/Fetch Error:', error);
+    } catch (error: any) {
+        // Check if it's a network error (not an HTTP error)
+        if (!error.status) {
+            console.error('[API] Network Error - Is the API server running?', error);
+            const networkError: any = new Error('Failed to connect to API server. Please ensure the backend is running.');
+            networkError.isNetworkError = true;
+            throw networkError;
+        }
+        // Re-throw HTTP errors as-is
         throw error;
     }
 }
@@ -186,7 +208,9 @@ export interface PlayerState {
     stamina: number;
     form: number;
     experience: number;
+    overall: number; // Overall rating from snapshot
     conditionMultiplier: number;
+    positionalContribution: number; // Raw contribution from position (before condition multiplier)
     isSubstitute: boolean;
 }
 
@@ -234,7 +258,7 @@ export const api = {
 
     getPlayer: (id: string) => fetchJson<Player>(`/players/${id}`),
 
-    getPlayers: (teamId: string) => fetchJson<{ data: Player[], meta: any }>(`/players?teamId=${teamId}`),
+    getPlayers: (teamId: string) => fetchJson<{ data: Player[], meta: any }>(`/players?teamId=${teamId}&limit=100`),
 
     getMatch: (id: string) => fetchJson<Match>(`/matches/${id}`),
 

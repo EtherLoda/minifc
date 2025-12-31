@@ -39,8 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 try {
                     const userData = await api.getMe(token);
                     setUser(userData);
-                } catch (error) {
-                    console.error('Failed to load user', error);
+                } catch (error: any) {
+                    // Only log if it's not an auth error (401)
+                    const errorMessage = error?.message || String(error);
+                    if (!errorMessage.includes('401') && !errorMessage.includes('Unauthorized')) {
+                        console.error('Failed to load user:', error);
+                    }
+                    // Remove invalid token
                     localStorage.removeItem('goalxi_token');
                 }
             }

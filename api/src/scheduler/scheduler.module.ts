@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MatchEntity, MatchTacticsEntity } from '@goalxi/database';
+import { MatchEntity, MatchTacticsEntity, MatchEventEntity } from '@goalxi/database';
 import { MatchSchedulerService } from './match-scheduler.service';
 
 @Module({
@@ -11,7 +11,10 @@ import { MatchSchedulerService } from './match-scheduler.service';
         BullModule.registerQueue({
             name: 'match-simulation',
         }),
-        TypeOrmModule.forFeature([MatchEntity, MatchTacticsEntity]),
+        BullModule.registerQueue({
+            name: 'match-completion',
+        }),
+        TypeOrmModule.forFeature([MatchEntity, MatchTacticsEntity, MatchEventEntity]),
     ],
     providers: [MatchSchedulerService],
     exports: [MatchSchedulerService],

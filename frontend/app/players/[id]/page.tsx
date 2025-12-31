@@ -155,7 +155,6 @@ async function PlayerData({ id }: { id: string }) {
                                     <div className="relative z-10 filter drop-shadow-xl dark:drop-shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-125">
                                         <MiniPlayer
                                             appearance={playerAppearance}
-                                            position={player.isGoalkeeper ? 'GK' : 'FWD'}
                                             size={160}
                                         />
                                     </div>

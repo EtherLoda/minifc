@@ -82,6 +82,7 @@ export class MatchController {
         return this.matchService.create(dto);
     }
 
+    @Public()
     @Patch(':id')
     // TODO: Add AdminGuard
     async updateMatch(

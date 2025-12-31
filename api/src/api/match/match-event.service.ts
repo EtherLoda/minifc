@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
+import { Repository, LessThanOrEqual, In } from 'typeorm';
 import {
     MatchEntity,
     MatchEventEntity,
@@ -78,24 +78,46 @@ export class MatchEventService {
         //     await this.validateAccess(userId, match);
         // }
 
-
-        // Get streaming speed from settings
-        const streamingSpeed = GAME_SETTINGS.MATCH_STREAMING_SPEED;
+        const now = new Date();
+        const matchStartTime = new Date(match.scheduledAt);
+        
+        // Calculate total match duration
         const totalMinutes =
             90 +
             (match.firstHalfInjuryTime || 0) +
             (match.secondHalfInjuryTime || 0) +
-            (match.hasExtraTime ? 30 : 0);
+            (match.hasExtraTime ? 30 + (match.extraTimeFirstHalfInjury || 0) + (match.extraTimeSecondHalfInjury || 0) : 0);
 
-        let maxVisibleMinute = 0;
-
-        if (match.status === MatchStatus.COMPLETED) {
-            maxVisibleMinute = totalMinutes + 10;
-        } else {
-            // Calculate current visible minute based on scheduled time
-            const elapsedMs = Date.now() - match.scheduledAt.getTime();
-            const currentMinute = Math.floor(elapsedMs / (60 * 1000 / streamingSpeed));
-            maxVisibleMinute = Math.min(currentMinute, totalMinutes);
+        // Calculate current match minute based on elapsed real-world time
+        let currentMinute = 0;
+        if (match.status === MatchStatus.IN_PROGRESS) {
+            if (now >= matchStartTime) {
+                const elapsedMs = now.getTime() - matchStartTime.getTime();
+                const elapsedMinutes = Math.floor(elapsedMs / (60 * 1000));
+                
+                // Account for 15-minute halftime break
+                if (elapsedMinutes <= 45) {
+                    // First half
+                    currentMinute = elapsedMinutes;
+                } else if (elapsedMinutes <= 60) {
+                    // Halftime break (no game time passes)
+                    currentMinute = 45;
+                } else {
+                    // Second half (subtract 15-minute break)
+                    currentMinute = elapsedMinutes - 15;
+                    
+                    // If extra time, account for additional breaks
+                    if (currentMinute > 90 && match.hasExtraTime) {
+                        // In extra time range
+                        // No additional adjustment needed, currentMinute continues from 91+
+                    }
+                }
+                
+                // Cap at total minutes
+                currentMinute = Math.min(currentMinute, totalMinutes);
+            }
+        } else if (match.status === MatchStatus.COMPLETED) {
+            currentMinute = totalMinutes;
         }
 
         // Try to get events from cache first
@@ -109,21 +131,49 @@ export class MatchEventService {
             });
 
             // If we have events and the simulation has run (events exist), cache them
-            // We verify simulation has run if we have more than just a kickoff, or any events really.
             if (events && events.length > 0) {
                 await this.matchCacheService.cacheMatchEvents(matchId, events);
             }
         }
 
-        // Filter events by visible minute (Timeline Logic)
-        const visibleEvents = events.filter(e => e.minute <= maxVisibleMinute);
+        // Filter events by eventScheduledTime (only show events that should have happened by now)
+        const visibleEvents = events.filter(e => {
+            // If match is completed, show all events
+            if (match.status === MatchStatus.COMPLETED) {
+                return true;
+            }
+            
+            // Otherwise, only show events whose scheduled time has passed
+            if (e.eventScheduledTime) {
+                return e.eventScheduledTime <= now;
+            }
+            
+            // Fallback for events without eventScheduledTime (old data)
+            return e.minute <= currentMinute;
+        });
+        
+        // Mark events as revealed if their time has passed
+        const eventsToUpdate = events.filter(e => 
+            e.eventScheduledTime && 
+            e.eventScheduledTime <= now && 
+            !e.isRevealed
+        );
+        
+        if (eventsToUpdate.length > 0) {
+            await this.eventRepository.update(
+                { id: In(eventsToUpdate.map(e => e.id)) },
+                { isRevealed: true }
+            );
+            // Invalidate cache since we updated event revealed status
+            await this.matchCacheService.invalidateMatchCache(matchId);
+        }
 
         // Calculate current score from visible events
         const currentScore = this.calculateScoreFromEvents(visibleEvents, match);
 
         // Get stats only if match is complete
         let stats = null;
-        if (maxVisibleMinute >= totalMinutes) {
+        if (match.status === MatchStatus.COMPLETED) {
             const [homeStats, awayStats] = await Promise.all([
                 this.statsRepository.findOne({
                     where: { matchId, teamId: match.homeTeamId },
@@ -132,7 +182,9 @@ export class MatchEventService {
                     where: { matchId, teamId: match.awayTeamId },
                 }),
             ]);
-            stats = { home: homeStats!, away: awayStats! };
+            if (homeStats && awayStats) {
+                stats = { home: homeStats, away: awayStats };
+            }
         }
 
         return {
@@ -148,9 +200,9 @@ export class MatchEventService {
                 logo: match.awayTeam!.logoUrl || null,
             },
             scheduledAt: match.scheduledAt,
-            currentMinute: Math.max(0, maxVisibleMinute), // Ensure no negative time
+            currentMinute: Math.max(0, currentMinute),
             totalMinutes,
-            isComplete: maxVisibleMinute >= totalMinutes,
+            isComplete: match.status === MatchStatus.COMPLETED,
             events: visibleEvents,
             currentScore,
             stats,

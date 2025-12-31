@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { Tag, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { PlayerAppearance, Position } from '@/types/player';
-import { convertAppearance, generateAppearance, getPositionFromGoalkeeper } from '@/utils/playerUtils';
+import { convertAppearance, generateAppearance } from '@/utils/playerUtils';
 
 interface RosterTableProps {
     players: Player[];
@@ -204,7 +204,6 @@ export function RosterTable({ players }: RosterTableProps) {
                                         <div className="relative z-10 filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:drop-shadow-[0_0_25px_rgba(16,185,129,0.6)] transition-all scale-110">
                                             <MiniPlayer
                                                 appearance={getPlayerAppearance(player)}
-                                                position={getPositionFromGoalkeeper(player.isGoalkeeper)}
                                                 size={120}
                                             />
                                         </div>

@@ -1,4 +1,4 @@
-import { PlayerAppearance, SkinTone, HairStyle, BodyType, Accessory, Position } from '@/types/player';
+import { PlayerAppearance, SkinTone, HairStyle, BodyType, Accessory } from '@/types/player';
 
 // Convert backend appearance format to frontend format
 export function convertAppearance(backendAppearance: any): PlayerAppearance | null {
@@ -99,24 +99,4 @@ export function generateAppearance(playerId: string): PlayerAppearance {
         jerseyColorSecondary: '#ffffff',
         accessory: accessories[h2 % accessories.length]
     };
-}
-
-export function mapPosition(detailedPos: string): Position {
-    if (!detailedPos) return 'MID'; // Fallback for undefined
-    const pos = detailedPos.toUpperCase();
-    if (pos === 'GK') return 'GK';
-    if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'DEF';
-    if (['CM', 'CDM', 'CAM', 'LM', 'RM'].includes(pos)) return 'MID';
-    if (['ST', 'LW', 'RW', 'CF'].includes(pos)) return 'FWD';
-    return 'MID'; // Fallback
-}
-
-// Helper to get position string from player (since position field was removed)
-export function getPlayerPosition(player: { isGoalkeeper: boolean }): string {
-    return player.isGoalkeeper ? 'GK' : 'MID';
-}
-
-// Helper to get Position type from isGoalkeeper
-export function getPositionFromGoalkeeper(isGoalkeeper: boolean): Position {
-    return isGoalkeeper ? 'GK' : 'MID';
 }

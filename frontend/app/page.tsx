@@ -92,7 +92,7 @@ export default function Home() {
                 <div className="absolute top-0 right-10 w-48 h-64 rotate-12 opacity-60 scale-90 blur-[1px] rounded-2xl border-2 border-emerald-900/20 bg-black/40 backdrop-blur-sm overflow-hidden transform transition-transform hover:scale-95 hover:rotate-6 duration-500">
                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent"></div>
                   <div className="h-full flex flex-col items-center justify-center pt-4">
-                    <MiniPlayer appearance={heroGoalkeeper} position="GK" size={100} />
+                    <MiniPlayer appearance={heroGoalkeeper} size={100} />
                     <div className="font-black italic text-yellow-500/50 text-4xl mt-2">GK</div>
                   </div>
                 </div>
@@ -107,7 +107,7 @@ export default function Home() {
                     <div className="absolute top-4 right-4 text-3xl font-black text-emerald-500/20">99</div>
 
                     <div className="w-32 h-32 rounded-full bg-emerald-100/10 flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
-                      <MiniPlayer appearance={heroAppearance} position="FWD" size={100} />
+                      <MiniPlayer appearance={heroAppearance} size={100} />
                     </div>
 
                     <div className="text-center w-full">

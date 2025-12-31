@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Auction } from '@/lib/api';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance, getPositionFromGoalkeeper, getPlayerPosition, convertAppearance } from '@/utils/playerUtils';
+import { generateAppearance, convertAppearance } from '@/utils/playerUtils';
 import { Clock, TrendingUp, Briefcase, History, DollarSign, Gavel, Zap, Loader2, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { SkillBars } from '@/components/ui/SkillBars';
@@ -221,7 +221,6 @@ export function AuctionListItem({ auction, isOwnListing, isWinning, balance, onU
                 <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-emerald-950/40 dark:to-emerald-900/20 flex items-center justify-center p-2 border-2 border-emerald-500/20">
                     <MiniPlayer
                         appearance={convertAppearance(player.appearance) || generateAppearance(player.id)}
-                        position={getPositionFromGoalkeeper(player.isGoalkeeper)}
                         size={96}
                     />
                 </div>
@@ -476,7 +475,6 @@ export function AuctionListItem({ auction, isOwnListing, isWinning, balance, onU
                                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-emerald-950/40 dark:to-emerald-900/20 flex items-center justify-center border border-emerald-500/20">
                                     <MiniPlayer
                                         appearance={convertAppearance(auction.player.appearance) || generateAppearance(auction.player.id)}
-                                        position={getPositionFromGoalkeeper(auction.player.isGoalkeeper)}
                                         size={40}
                                     />
                                 </div>
@@ -485,7 +483,7 @@ export function AuctionListItem({ auction, isOwnListing, isWinning, balance, onU
                                         {auction.player.name}
                                     </div>
                                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                                        {getPlayerPosition(auction.player)} • OVR {auction.player.overall}
+                                        {auction.player.isGoalkeeper ? 'GK' : 'MID'} • OVR {auction.player.overall}
                                     </div>
                                 </div>
                             </div>

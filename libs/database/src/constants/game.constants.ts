@@ -10,7 +10,7 @@ export const GAME_SETTINGS = {
 
     // Match Settings
     MATCH_STREAMING_SPEED: 1.0,  // 1x = real-time (90 min = 90 min)
-    MATCH_TACTICS_DEADLINE_MINUTES: 30,
+    MATCH_TACTICS_DEADLINE_MINUTES: 10,  // Tactics lock 10 minutes before match
     MATCH_POLLING_INTERVAL_MINUTES: 5,
 
     // Match Duration

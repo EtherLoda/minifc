@@ -3,10 +3,11 @@ import { Cron } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
+import { Repository, LessThanOrEqual, LessThan } from 'typeorm';
 import {
     MatchEntity,
     MatchTacticsEntity,
+    MatchEventEntity,
     MatchStatus,
     GAME_SETTINGS,
 } from '@goalxi/database';
@@ -18,52 +19,45 @@ export class MatchSchedulerService {
     constructor(
         @InjectQueue('match-simulation')
         private simulationQueue: Queue,
+        @InjectQueue('match-completion')
+        private completionQueue: Queue,
         @InjectRepository(MatchEntity)
         private matchRepository: Repository<MatchEntity>,
         @InjectRepository(MatchTacticsEntity)
         private tacticsRepository: Repository<MatchTacticsEntity>,
+        @InjectRepository(MatchEventEntity)
+        private eventRepository: Repository<MatchEventEntity>,
     ) { }
 
-    @Cron('*/5 * * * *') // Every 5 minutes
-    async lockTacticsAndSimulate() {
-        this.logger.debug('Starting match scheduler cycle');
+    // ===== SCHEDULER 1: Lock Tactics 30 Minutes Before Match =====
+    @Cron('0 * * * * *') // Every minute
+    async lockTactics() {
+        this.logger.debug('[TacticsLockScheduler] Checking for matches to lock');
 
-        const deadlineMs =
-            GAME_SETTINGS.MATCH_TACTICS_DEADLINE_MINUTES * 60 * 1000;
-        const targetTime = new Date(Date.now() + deadlineMs);
+        const now = new Date();
+        const lockThreshold = new Date(
+            now.getTime() + GAME_SETTINGS.MATCH_TACTICS_DEADLINE_MINUTES * 60 * 1000,
+        );
 
-        // Find matches that are scheduled at or before the deadline (catch-up logic)
-        // Only process matches that are still SCHEDULED and not yet locked
+        // Find matches scheduled within next 30 minutes that haven't been locked
         const matches = await this.matchRepository.find({
             where: {
                 status: MatchStatus.SCHEDULED,
-                tacticsLocked: false, // Additional safety check
-                scheduledAt: LessThanOrEqual(targetTime),
+                tacticsLocked: false,
+                scheduledAt: LessThanOrEqual(lockThreshold),
             },
         });
 
         if (matches.length === 0) {
-            this.logger.debug('No matches to process in this cycle');
             return;
         }
 
         this.logger.log(
-            `Found ${matches.length} match(es) ready for tactics locking and simulation`,
+            `[TacticsLockScheduler] Found ${matches.length} match(es) ready for tactics locking`,
         );
-
-        let processedCount = 0;
-        let errorCount = 0;
 
         for (const match of matches) {
             try {
-                // Double-check: skip if already locked (race condition protection)
-                if (match.tacticsLocked) {
-                    this.logger.warn(
-                        `Match ${match.id} is already locked, skipping`,
-                    );
-                    continue;
-                }
-
                 // Get tactics for both teams
                 const [homeTactics, awayTactics] = await Promise.all([
                     this.tacticsRepository.findOne({
@@ -74,19 +68,69 @@ export class MatchSchedulerService {
                     }),
                 ]);
 
-                // Mark forfeits
+                // Mark forfeits and lock tactics
                 match.homeForfeit = !homeTactics;
                 match.awayForfeit = !awayTactics;
                 match.tacticsLocked = true;
+                match.tacticsLockedAt = now;
                 match.status = MatchStatus.TACTICS_LOCKED;
                 await this.matchRepository.save(match);
 
                 this.logger.log(
-                    `Locked tactics for match ${match.id} (scheduled: ${match.scheduledAt.toISOString()}). ` +
-                        `Home forfeit: ${match.homeForfeit}, Away forfeit: ${match.awayForfeit}`,
+                    `🔒 Tactics locked for match ${match.id} ` +
+                        `(${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'}). ` +
+                        `Scheduled: ${match.scheduledAt.toISOString()}`,
                 );
+            } catch (error) {
+                this.logger.error(
+                    `[TacticsLockScheduler] Failed to lock match ${match.id}: ${error.message}`,
+                    error.stack,
+                );
+            }
+        }
+    }
 
-                // Send to simulation queue
+    // ===== SCHEDULER 2: Start Match at Scheduled Time =====
+    @Cron('*/30 * * * * *') // Every 30 seconds
+    async startMatches() {
+        this.logger.debug('[MatchStartScheduler] Checking for matches to start');
+
+        const now = new Date();
+
+        // Find matches that should start now
+        const matches = await this.matchRepository.find({
+            where: {
+                status: MatchStatus.TACTICS_LOCKED,
+                scheduledAt: LessThanOrEqual(now),
+            },
+        });
+
+        if (matches.length === 0) {
+            return;
+        }
+
+        this.logger.log(
+            `[MatchStartScheduler] Found ${matches.length} match(es) ready to start`,
+        );
+
+        for (const match of matches) {
+            try {
+                // Update match status to IN_PROGRESS
+                match.status = MatchStatus.IN_PROGRESS;
+                match.startedAt = match.scheduledAt; // Use scheduled time, not current time
+                await this.matchRepository.save(match);
+
+                // Get tactics for simulation
+                const [homeTactics, awayTactics] = await Promise.all([
+                    this.tacticsRepository.findOne({
+                        where: { matchId: match.id, teamId: match.homeTeamId },
+                    }),
+                    this.tacticsRepository.findOne({
+                        where: { matchId: match.id, teamId: match.awayTeamId },
+                    }),
+                ]);
+
+                // Queue simulation job
                 await this.simulationQueue.add('simulate-match', {
                     matchId: match.id,
                     homeTeamId: match.homeTeamId,
@@ -98,19 +142,74 @@ export class MatchSchedulerService {
                     matchType: match.type,
                 });
 
-                this.logger.log(`Queued match ${match.id} for simulation`);
-                processedCount++;
+                this.logger.log(
+                    `⚽ Match started: ${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'} ` +
+                        `(ID: ${match.id}, Scheduled: ${match.scheduledAt.toISOString()})`,
+                );
             } catch (error) {
-                errorCount++;
                 this.logger.error(
-                    `Failed to process match ${match.id}: ${error.message}`,
+                    `[MatchStartScheduler] Failed to start match ${match.id}: ${error.message}`,
                     error.stack,
                 );
             }
         }
+    }
 
-        this.logger.log(
-            `Scheduler cycle completed: ${processedCount} processed, ${errorCount} errors`,
-        );
+    // ===== SCHEDULER 3: Complete Match After All Events Revealed =====
+    @Cron('0 * * * * *') // Every minute
+    async completeMatches() {
+        this.logger.debug('[MatchCompletionScheduler] Checking for matches to complete');
+
+        const now = new Date();
+
+        // Find matches that are currently in progress
+        const matches = await this.matchRepository.find({
+            where: {
+                status: MatchStatus.IN_PROGRESS,
+            },
+        });
+
+        if (matches.length === 0) {
+            return;
+        }
+
+        for (const match of matches) {
+            try {
+                // Get the last event for this match
+                const lastEvent = await this.eventRepository.findOne({
+                    where: { matchId: match.id },
+                    order: { eventScheduledTime: 'DESC' },
+                });
+
+                // If no events or last event hasn't happened yet, skip
+                if (!lastEvent || !lastEvent.eventScheduledTime) {
+                    continue;
+                }
+
+                // Check if last event time has passed
+                if (lastEvent.eventScheduledTime <= now) {
+                    match.status = MatchStatus.COMPLETED;
+                    match.completedAt = lastEvent.eventScheduledTime;
+                    match.actualEndTime = lastEvent.eventScheduledTime;
+                    await this.matchRepository.save(match);
+
+                    // Queue post-match processing (player stats, league standings)
+                    await this.completionQueue.add('complete-match', {
+                        matchId: match.id,
+                    });
+
+                    this.logger.log(
+                        `🏁 Match completed: ${match.homeTeam?.name || 'Home'} ${match.homeScore || 0} - ` +
+                            `${match.awayScore || 0} ${match.awayTeam?.name || 'Away'} ` +
+                            `(ID: ${match.id})`,
+                    );
+                }
+            } catch (error) {
+                this.logger.error(
+                    `[MatchCompletionScheduler] Failed to complete match ${match.id}: ${error.message}`,
+                    error.stack,
+                );
+            }
+        }
     }
 }

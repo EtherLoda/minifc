@@ -12,6 +12,7 @@ export interface MatchEvent {
     teamId?: string;
     playerId?: string;
     data?: any;
+    eventScheduledTime?: Date; // Real-world time when this event should be revealed (calculated by processor)
 }
 
 export class MatchEngine {
@@ -86,7 +87,7 @@ export class MatchEngine {
             const currentBlock = (this.time / 5) | 0;
             const lastBlock = (lastTime / 5) | 0;
 
-            if (currentBlock > lastBlock || i === 0 || isHalfTime) {
+            if (currentBlock > lastBlock || isHalfTime) {
                 this.homeTeam.updateSnapshot();
                 this.awayTeam.updateSnapshot();
                 this.generateSnapshotEvent(this.time);
@@ -506,6 +507,25 @@ export class MatchEngine {
                         player.experience
                     );
 
+                    // Calculate player's contribution in their position (before condition multiplier)
+                    // Get raw contributions across all three lanes and three phases
+                    const leftAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'attack');
+                    const leftDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'defense');
+                    const leftPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'possession');
+                    
+                    const centerAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'attack');
+                    const centerDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'defense');
+                    const centerPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'possession');
+                    
+                    const rightAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'attack');
+                    const rightDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'defense');
+                    const rightPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'possession');
+
+                    // Sum all contributions to get total positional performance
+                    const totalContribution = leftAttack + leftDefense + leftPossession +
+                                             centerAttack + centerDefense + centerPossession +
+                                             rightAttack + rightDefense + rightPossession;
+
                     return {
                         playerId: player.id,
                         name: player.name,
@@ -513,7 +533,9 @@ export class MatchEngine {
                         stamina: parseFloat(currentFit.toFixed(2)),
                         form: player.form,
                         experience: player.experience || 0,
+                        overall: player.overall || 50,
                         conditionMultiplier: parseFloat(conditionMultiplier.toFixed(3)),
+                        positionalContribution: parseFloat(totalContribution.toFixed(2)), // Raw contribution from position
                         isSubstitute: tacticalPlayer.isOriginal === false
                     };
                 });

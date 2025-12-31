@@ -28,5 +28,6 @@ export interface Player {
     currentStamina: number;
     form: number;
     experience: number;
+    overall?: number; // Overall rating for performance calculation
     // ... other fields
 }

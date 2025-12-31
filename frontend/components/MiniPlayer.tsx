@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { PlayerAppearance, Position } from '@/types/player';
+import { PlayerAppearance } from '@/types/player';
 
 interface Props {
     appearance: PlayerAppearance;
-    position: Position;
     size?: number;
     className?: string;
     style?: React.CSSProperties;
@@ -14,7 +13,6 @@ interface Props {
 
 export const MiniPlayer: React.FC<Props> = ({
     appearance,
-    position,
     size = 100,
     className = '',
     style,
@@ -26,16 +24,6 @@ export const MiniPlayer: React.FC<Props> = ({
         width: size,
         height: size,
         ...style
-    };
-
-    const getPosColor = () => {
-        switch (position) {
-            case 'GK': return '#fbbf24';
-            case 'DEF': return '#3b82f6';
-            case 'MID': return '#22c55e';
-            case 'FWD': return '#ef4444';
-            default: return '#94a3b8';
-        }
     };
 
     // Deterministic variety generator
@@ -73,7 +61,7 @@ export const MiniPlayer: React.FC<Props> = ({
                 style={{ shapeRendering: 'crispEdges' }}
             >
                 <defs>
-                    <filter id={`pixel-outline-filter-${position}`} x="-50%" y="-50%" width="200%" height="200%">
+                    <filter id="pixel-outline-filter" x="-50%" y="-50%" width="200%" height="200%">
                         <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="dilated" />
                         <feFlood floodColor="rgba(15, 23, 42, 1)" result="flood" />
                         <feComposite in="flood" in2="dilated" operator="in" result="outline" />
@@ -88,7 +76,7 @@ export const MiniPlayer: React.FC<Props> = ({
                 <rect x={isThin ? "10" : "8"} y="29" width={isThin ? "12" : "16"} height="2" fill="rgba(0,0,0,0.3)" rx="1" />
 
                 {/* Character Group with Outline */}
-                <g filter={`url(#pixel-outline-filter-${position})`}>
+                <g filter="url(#pixel-outline-filter)">
 
                     {/* --- BACK HAIR (Depth) --- */}
                     {(hairStyle === 'messy' || hairStyle === 'spiky') && (

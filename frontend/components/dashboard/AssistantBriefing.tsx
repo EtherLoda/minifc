@@ -94,7 +94,7 @@ export default function AssistantBriefing() {
             <div className="flex flex-col md:flex-row items-start gap-6 bg-white dark:bg-emerald-950/20 p-6 rounded-2xl border border-emerald-500/20 relative overflow-hidden">
                 <div className="shrink-0 relative z-10 mx-auto md:mx-0">
                     <div className="w-32 h-32 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center border-2 border-emerald-500/30">
-                        <MiniPlayer appearance={assistantAppearance} position="MID" size={100} />
+                        <MiniPlayer appearance={assistantAppearance} size={100} />
                     </div>
                     <div className="absolute -bottom-2 -right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white dark:border-black uppercase tracking-wider">
                         Assistant

@@ -17,6 +17,7 @@ import { PlayerEntity } from './player.entity';
 
 @Entity('match_event')
 @Index(['matchId', 'minute', 'second'])
+@Index(['matchId', 'eventScheduledTime'])
 export class MatchEventEntity extends BaseEntity {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -63,6 +64,12 @@ export class MatchEventEntity extends BaseEntity {
 
     @Column({ type: 'jsonb', nullable: true })
     data?: Record<string, any>;
+
+    @Column({ name: 'event_scheduled_time', type: 'timestamp', nullable: true })
+    eventScheduledTime?: Date;
+
+    @Column({ name: 'is_revealed', type: 'boolean', default: false })
+    isRevealed!: boolean;
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;

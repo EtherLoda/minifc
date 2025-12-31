@@ -79,6 +79,12 @@ export class MatchEntity extends AbstractEntity {
     @Column({ name: 'simulation_completed_at', type: 'timestamp', nullable: true })
     simulationCompletedAt?: Date;
 
+    @Column({ name: 'tactics_locked_at', type: 'timestamp', nullable: true })
+    tacticsLockedAt?: Date;
+
+    @Column({ name: 'actual_end_time', type: 'timestamp', nullable: true })
+    actualEndTime?: Date;
+
     @Column({ name: 'tactics_locked', type: 'boolean', default: false })
     tacticsLocked!: boolean;
 
@@ -102,6 +108,9 @@ export class MatchEntity extends AbstractEntity {
 
     @Column({ name: 'has_extra_time', type: 'boolean', default: false })
     hasExtraTime!: boolean;
+
+    @Column({ name: 'requires_winner', type: 'boolean', default: false })
+    requiresWinner!: boolean;
 
     @Column({ name: 'extra_time_first_half_injury', type: 'int', nullable: true })
     extraTimeFirstHalfInjury?: number;

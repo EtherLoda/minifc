@@ -61,6 +61,8 @@ async function TacticsData({ id, teamId }: { id: string; teamId: string }) {
                     teamId={teamId}
                     players={players.data}
                     initialTactics={tactics}
+                    matchScheduledAt={match.scheduledAt}
+                    matchStatus={match.status}
                 />
             </div>
         </div>

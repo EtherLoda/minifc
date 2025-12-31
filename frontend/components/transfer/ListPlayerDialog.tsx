@@ -13,7 +13,7 @@ import {
     Coins
 } from 'lucide-react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance, getPositionFromGoalkeeper, getPlayerPosition, convertAppearance } from '@/utils/playerUtils';
+import { generateAppearance, convertAppearance } from '@/utils/playerUtils';
 import { clsx } from 'clsx';
 import { useNotification } from '@/components/ui/NotificationContext';
 
@@ -162,7 +162,6 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
                                     <div className="w-16 h-16 bg-white dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
                                         <MiniPlayer
                                             appearance={convertAppearance(selectedPlayer.appearance) || generateAppearance(selectedPlayer.id)}
-                                            position={getPositionFromGoalkeeper(selectedPlayer.isGoalkeeper)}
                                             size={64}
                                         />
                                     </div>
@@ -171,7 +170,7 @@ export function ListPlayerDialog({ playerId, onClose, onSuccess }: ListPlayerDia
                                             {selectedPlayer.name}
                                         </div>
                                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                            {getPlayerPosition(selectedPlayer)} • OVR {selectedPlayer.overall}
+                                            {selectedPlayer.isGoalkeeper ? 'GK' : 'MID'} • OVR {selectedPlayer.overall}
                                         </div>
                                     </div>
                                 </div>

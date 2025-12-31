@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { PlayerAppearance, Position, SkinTone, HairStyle, BodyType, Accessory } from '@/types/player';
+import { PlayerAppearance, SkinTone, HairStyle, BodyType, Accessory } from '@/types/player';
 
 const skinTones: SkinTone[] = ['#F4C2A5', '#E0AC69', '#C68642', '#8D5524', '#5C3317'];
 const hairStyles: HairStyle[] = ['buzz', 'short', 'messy', 'spiky', 'mohawk', 'afro'];
 const bodyTypes: BodyType[] = ['thin', 'normal'];
 const accessories: Accessory[] = ['none', 'glasses', 'bandana'];
-const positions: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
 
 export default function CustomizerPage() {
     const [appearance, setAppearance] = useState<PlayerAppearance>({
@@ -20,8 +19,6 @@ export default function CustomizerPage() {
         jerseyColorSecondary: '#FFFFFF',
         accessory: 'none',
     });
-
-    const [position, setPosition] = useState<Position>('MID');
 
     const updateAppearance = (key: keyof PlayerAppearance, value: any) => {
         setAppearance((prev) => ({ ...prev, [key]: value }));
@@ -161,27 +158,6 @@ export default function CustomizerPage() {
                                     ))}
                                 </select>
                             </div>
-
-                            {/* Position */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Position
-                                </label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {positions.map((pos) => (
-                                        <button
-                                            key={pos}
-                                            onClick={() => setPosition(pos)}
-                                            className={`py-3 px-4 rounded-lg font-bold transition-all ${position === pos
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                                }`}
-                                        >
-                                            {pos}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
 
                         {/* Preview */}
@@ -190,14 +166,13 @@ export default function CustomizerPage() {
                             <div className="bg-white rounded-2xl p-8 shadow-xl">
                                 <MiniPlayer
                                     appearance={appearance}
-                                    position={position}
                                     size={250}
                                 />
                             </div>
                             <div className="mt-6 text-center">
                                 <p className="text-sm text-gray-600 mb-2">Player Configuration</p>
                                 <pre className="text-xs bg-gray-800 text-green-400 p-4 rounded-lg overflow-auto max-w-sm">
-                                    {JSON.stringify({ appearance, position }, null, 2)}
+                                    {JSON.stringify({ appearance }, null, 2)}
                                 </pre>
                             </div>
                         </div>

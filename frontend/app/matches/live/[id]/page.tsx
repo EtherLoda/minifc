@@ -7,7 +7,27 @@ import Link from 'next/link';
 
 async function MatchData({ id }: { id: string }) {
     const match = await api.getMatch(id);
-    const eventsData = await api.getMatchEvents(id);
+    
+    // Try to get events data - may not exist for scheduled matches
+    let eventsData = null;
+    try {
+        eventsData = await api.getMatchEvents(id);
+    } catch (e) {
+        // Events don't exist yet for scheduled/tactics_locked matches
+        // Create a minimal events data structure
+        eventsData = {
+            matchId: id,
+            currentMinute: 0,
+            totalMinutes: 90,
+            isComplete: false,
+            events: [],
+            currentScore: {
+                home: 0,
+                away: 0
+            },
+            stats: null
+        };
+    }
 
     let stats = null;
     try {
@@ -34,7 +54,7 @@ async function MatchData({ id }: { id: string }) {
 
                 {/* Match Header */}
                 <div className="mb-8">
-                    <MatchHeader match={match} />
+                    <MatchHeader match={match} currentScore={eventsData.currentScore} />
                 </div>
 
                 {/* Live Match Viewer with Simulation Control */}

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Player, api } from '@/lib/api';
 import { PitchLayout } from './PitchLayout';
 import { PlayerRoster } from './PlayerRoster';
-import { Save } from 'lucide-react';
+import { Save, Lock, Clock } from 'lucide-react';
 import { useNotification } from '@/components/ui/NotificationContext';
 
 interface TacticsEditorProps {
@@ -12,6 +12,8 @@ interface TacticsEditorProps {
     teamId: string;
     players: Player[];
     initialTactics: any;
+    matchScheduledAt: string; // ISO date string
+    matchStatus: string;
 }
 
 const POSITIONS = [
@@ -36,7 +38,7 @@ const SLOT_MAPPING: Record<string, string> = {
 const BACKEND_TO_FRONTEND: Record<string, string> = Object.entries(SLOT_MAPPING)
     .reduce((acc, [front, back]) => ({ ...acc, [back]: front }), {});
 
-export function TacticsEditor({ matchId, teamId, players, initialTactics }: TacticsEditorProps) {
+export function TacticsEditor({ matchId, teamId, players, initialTactics, matchScheduledAt, matchStatus }: TacticsEditorProps) {
     const [lineup, setLineup] = useState<Record<string, string | null>>(() => {
         const initial: Record<string, string | null> = {};
         POSITIONS.forEach(pos => initial[pos] = null);
@@ -57,11 +59,56 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
     const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
     const [draggedFrom, setDraggedFrom] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isTacticsLocked, setIsTacticsLocked] = useState(false);
+    const [countdown, setCountdown] = useState<number | null>(null);
     const { showNotification } = useNotification();
+
+    // Check tactics lock status and countdown
+    useEffect(() => {
+        const checkLockStatus = () => {
+            // Lock tactics if match status is not 'scheduled'
+            if (matchStatus !== 'scheduled') {
+                setIsTacticsLocked(true);
+                setCountdown(null);
+                return;
+            }
+
+            const now = Date.now();
+            const matchStartTime = new Date(matchScheduledAt).getTime();
+            const timeUntilMatchStart = matchStartTime - now;
+            const LOCK_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+            // Lock tactics if less than 30 minutes until match starts
+            if (timeUntilMatchStart <= LOCK_THRESHOLD_MS) {
+                setIsTacticsLocked(true);
+                // Show countdown to match start instead
+                setCountdown(Math.max(0, Math.floor(timeUntilMatchStart / 1000)));
+                return;
+            }
+
+            // Otherwise, show countdown to lock time
+            setIsTacticsLocked(false);
+            const timeUntilLock = timeUntilMatchStart - LOCK_THRESHOLD_MS;
+            setCountdown(Math.max(0, Math.floor(timeUntilLock / 1000))); // seconds until lock
+        };
+
+        // Check immediately
+        checkLockStatus();
+
+        // Update every second
+        const interval = setInterval(checkLockStatus, 1000);
+
+        return () => clearInterval(interval);
+    }, [matchScheduledAt, matchStatus]);
 
     const handleDragStart = (playerId: string, from: string | null) => {
         setDraggedPlayer(playerId);
         setDraggedFrom(from);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedPlayer(null);
+        setDraggedFrom(null);
     };
 
     const handleDrop = (position: string) => {
@@ -117,6 +164,16 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
     };
 
     const handleSubmit = async () => {
+        // Check if tactics are locked
+        if (isTacticsLocked) {
+            showNotification({
+                type: 'warning',
+                title: 'Tactics Locked',
+                message: 'Tactics deadline has passed. Match is about to start.',
+            });
+            return;
+        }
+
         const validation = validateLineup();
         if (!validation.valid) {
             showNotification({
@@ -155,6 +212,20 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
         }
     };
 
+    const formatCountdown = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
+    };
+
     const validation = validateLineup();
     const formation = generateFormation();
     const assignedPlayerIds = new Set(Object.values(lineup).filter((id): id is string => id !== null));
@@ -168,12 +239,53 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
                     players={players}
                     onDrop={handleDrop}
                     onRemove={handleRemovePlayer}
-                    onDragStart={handleDragStart}
+                    onDragStart={(playerId, position) => handleDragStart(playerId, position)}
+                    onDragEnd={handleDragEnd}
+                    isDragging={draggedPlayer !== null}
                 />
             </div>
 
             {/* Player Roster & Controls */}
             <div className="space-y-4">
+                {/* Tactics Lock Warning */}
+                {isTacticsLocked && (
+                    <div className="p-4 rounded-xl border-2 bg-red-50 border-red-500/40 dark:bg-red-950/20 dark:border-red-500/30">
+                        <div className="flex items-center gap-3">
+                            <Lock className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            <div className="flex-1">
+                                <div className="text-sm font-bold text-red-900 dark:text-red-300">
+                                    Tactics Locked
+                                </div>
+                                <div className="text-xs text-red-700 dark:text-red-400">
+                                    {matchStatus === 'scheduled' && countdown !== null && countdown > 0 && (
+                                        <>Match starts in {formatCountdown(countdown)}</>
+                                    )}
+                                    {matchStatus === 'tactics_locked' && 'Match starting soon...'}
+                                    {matchStatus === 'in_progress' && 'Match in progress'}
+                                    {matchStatus === 'completed' && 'Match completed'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Countdown Warning (show when < 5 minutes remaining) */}
+                {!isTacticsLocked && countdown !== null && countdown < 300 && (
+                    <div className="p-4 rounded-xl border-2 bg-amber-50 border-amber-500/40 dark:bg-amber-950/20 dark:border-amber-500/30">
+                        <div className="flex items-center gap-3">
+                            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-pulse" />
+                            <div>
+                                <div className="text-sm font-bold text-amber-900 dark:text-amber-300">
+                                    Time Running Out!
+                                </div>
+                                <div className="text-xs text-amber-700 dark:text-amber-400">
+                                    Tactics lock in {formatCountdown(countdown)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Formation & Validation Info */}
                 <div className="p-4 rounded-xl border-2 bg-white border-emerald-500/40 dark:bg-emerald-950/20 dark:border-emerald-500/30">
                     <div className="space-y-3">
@@ -202,14 +314,25 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!validation.valid || isSubmitting}
-                    className="w-full px-6 py-4 rounded-xl border-2 font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                        bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500 shadow-lg
-                        dark:bg-emerald-500 dark:border-emerald-500 dark:hover:bg-emerald-400"
+                    disabled={!validation.valid || isSubmitting || isTacticsLocked}
+                    className={`w-full px-6 py-4 rounded-xl border-2 font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isTacticsLocked
+                            ? 'bg-gray-400 text-white border-gray-400 dark:bg-gray-600 dark:border-gray-600'
+                            : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500 shadow-lg dark:bg-emerald-500 dark:border-emerald-500 dark:hover:bg-emerald-400'
+                    }`}
                 >
                     <div className="flex items-center justify-center gap-2">
-                        <Save size={20} />
-                        {isSubmitting ? 'Saving...' : 'Save Tactics'}
+                        {isTacticsLocked ? (
+                            <>
+                                <Lock size={20} />
+                                Tactics Locked
+                            </>
+                        ) : (
+                            <>
+                                <Save size={20} />
+                                {isSubmitting ? 'Saving...' : 'Save Tactics'}
+                            </>
+                        )}
                     </div>
                 </button>
 
@@ -227,6 +350,7 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics }: Tact
                     players={players}
                     assignedPlayerIds={assignedPlayerIds}
                     onDragStart={(playerId) => handleDragStart(playerId, null)}
+                    onDragEnd={handleDragEnd}
                 />
             </div>
         </div>

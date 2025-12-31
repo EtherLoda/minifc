@@ -51,7 +51,8 @@ export class PlayerAdapter {
             attributes: attributes,
             currentStamina: entity.stamina || 3,
             form: entity.form || 5,
-            experience: entity.experience || 10
+            experience: entity.experience || 10,
+            overall: this.calculateOverall(entity.currentSkills)
         };
     }
 
@@ -66,7 +67,33 @@ export class PlayerAdapter {
             },
             currentStamina: 3,
             form: 5,
-            experience: 0
+            experience: 0,
+            overall: 50
         };
+    }
+
+    /**
+     * Calculate overall rating from player skills
+     * Same logic as API backend: average all skills * 5 (scales 0-20 range to 0-100)
+     */
+    private static calculateOverall(skills: any): number {
+        if (!skills) return 50; // Default fallback
+        
+        let total = 0;
+        let count = 0;
+
+        // Iterate through all skill categories (physical, technical, mental)
+        for (const category of Object.values(skills)) {
+            if (category && typeof category === 'object') {
+                for (const value of Object.values(category)) {
+                    if (typeof value === 'number') {
+                        total += value;
+                        count++;
+                    }
+                }
+            }
+        }
+
+        return count > 0 ? Math.round((total / count) * 5) : 50;
     }
 }

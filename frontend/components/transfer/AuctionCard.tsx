@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Auction } from '@/lib/api';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { generateAppearance, getPositionFromGoalkeeper, getPlayerPosition, convertAppearance } from '@/utils/playerUtils';
+import { generateAppearance, convertAppearance } from '@/utils/playerUtils';
 import { DollarSign, Clock, TrendingUp, User, Shield, Briefcase } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -83,7 +83,6 @@ export function AuctionCard({ auction, isOwnListing, isWinning }: AuctionCardPro
 
                 <MiniPlayer
                     appearance={convertAppearance(auction.player.appearance) || generateAppearance(auction.player.id)}
-                    position={getPositionFromGoalkeeper(auction.player.isGoalkeeper)}
                     size={96}
                 />
 
@@ -96,7 +95,7 @@ export function AuctionCard({ auction, isOwnListing, isWinning }: AuctionCardPro
                 {/* Position Badge */}
                 <div className="absolute -bottom-2 left-4 px-3 py-1 bg-slate-900 text-white rounded-lg shadow-lg flex items-center gap-1.5 transform -rotate-3">
                     <Shield size={10} className="text-slate-400" />
-                    <span className="text-xs font-black italic">{getPlayerPosition(auction.player)}</span>
+                    <span className="text-xs font-black italic">{auction.player.isGoalkeeper ? 'GK' : 'MID'}</span>
                 </div>
             </div>
 

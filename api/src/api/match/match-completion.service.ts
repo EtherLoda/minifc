@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
     MatchEntity,
     MatchStatus,
@@ -172,10 +172,19 @@ export class MatchCompletionService {
         // Actually, the MatchSimulationProcessor has access to homeSimPlayers and awaySimPlayers.
         // Maybe we should pass that info? No, MatchCompletionService is a separate job.
 
-        // Let's update what we have.
-        for (const [playerId, stats] of playerStatsUpdate.entries()) {
-            const player = await this.playerRepository.findOne({ where: { id: playerId as any } });
-            if (player) {
+        // 3. Batch update players to avoid memory issues
+        const playerIds = Array.from(playerStatsUpdate.keys());
+        if (playerIds.length === 0) return;
+
+        const players = await this.playerRepository.find({
+            where: { id: In(playerIds as any[]) },
+        });
+
+        const playersToUpdate: PlayerEntity[] = [];
+
+        for (const player of players) {
+            const stats = playerStatsUpdate.get(player.id);
+            if (stats) {
                 if (!player.careerStats) player.careerStats = { club: { matches: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0 } };
                 if (!player.careerStats.club) player.careerStats.club = { matches: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0 };
 
@@ -185,8 +194,13 @@ export class MatchCompletionService {
                 player.careerStats.club.yellowCards += stats.yellowCards;
                 player.careerStats.club.redCards += stats.redCards;
 
-                await this.playerRepository.save(player);
+                playersToUpdate.push(player);
             }
+        }
+
+        // Batch save all players
+        if (playersToUpdate.length > 0) {
+            await this.playerRepository.save(playersToUpdate);
         }
     }
 
