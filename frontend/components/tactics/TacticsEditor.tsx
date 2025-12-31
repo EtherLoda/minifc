@@ -38,6 +38,26 @@ const SLOT_MAPPING: Record<string, string> = {
 const BACKEND_TO_FRONTEND: Record<string, string> = Object.entries(SLOT_MAPPING)
     .reduce((acc, [front, back]) => ({ ...acc, [back]: front }), {});
 
+// Add direct mappings for backend positions that don't go through SLOT_MAPPING
+// These are used by setup-match-db.ts script
+BACKEND_TO_FRONTEND['GK'] = 'GK';
+BACKEND_TO_FRONTEND['LB'] = 'LB';
+BACKEND_TO_FRONTEND['CBL'] = 'CDL';  // Backend uses CBL, frontend uses CDL
+BACKEND_TO_FRONTEND['CBR'] = 'CDR';  // Backend uses CBR, frontend uses CDR
+BACKEND_TO_FRONTEND['RB'] = 'RB';
+BACKEND_TO_FRONTEND['DML'] = 'DML';
+BACKEND_TO_FRONTEND['DMR'] = 'DMR';
+BACKEND_TO_FRONTEND['AML'] = 'AML';
+BACKEND_TO_FRONTEND['AM'] = 'AM';
+BACKEND_TO_FRONTEND['AMR'] = 'AMR';
+BACKEND_TO_FRONTEND['CF'] = 'CF';
+BACKEND_TO_FRONTEND['CF_L'] = 'CFL';
+BACKEND_TO_FRONTEND['CF_R'] = 'CFR';
+BACKEND_TO_FRONTEND['LM'] = 'LM';
+BACKEND_TO_FRONTEND['RM'] = 'RM';
+BACKEND_TO_FRONTEND['CML'] = 'CML';
+BACKEND_TO_FRONTEND['CMR'] = 'CMR';
+
 export function TacticsEditor({ matchId, teamId, players, initialTactics, matchScheduledAt, matchStatus }: TacticsEditorProps) {
     const [lineup, setLineup] = useState<Record<string, string | null>>(() => {
         const initial: Record<string, string | null> = {};
@@ -45,12 +65,17 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
 
         if (initialTactics?.lineup) {
             // Map backend slots back to frontend slots
+            console.log('Backend lineup received:', initialTactics.lineup);
             Object.entries(initialTactics.lineup).forEach(([slot, playerId]) => {
                 const frontendSlot = BACKEND_TO_FRONTEND[slot];
+                console.log(`Mapping ${slot} -> ${frontendSlot}`);
                 if (frontendSlot && POSITIONS.includes(frontendSlot)) {
                     initial[frontendSlot] = playerId as string;
+                } else {
+                    console.warn(`No frontend mapping for backend slot: ${slot}`);
                 }
             });
+            console.log('Final frontend lineup:', initial);
         }
 
         return initial;

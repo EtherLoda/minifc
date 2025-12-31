@@ -88,7 +88,13 @@ function MatchData({ id }: { id: string }) {
 
                 {/* Match Header */}
                 <div className="mb-8">
-                    <MatchHeader match={match} currentScore={currentScore} />
+                    {/* Debug: Log match status */}
+                    {console.log('Match Status:', match.status, 'Should show score?', match.status === 'in_progress' || match.status === 'completed')}
+                    <MatchHeader 
+                        match={match} 
+                        currentScore={match.status === 'in_progress' || match.status === 'completed' ? currentScore : undefined}
+                        currentMinute={eventsData?.currentMinute}
+                    />
                 </div>
 
                 {/* Live Match Viewer with Simulation Control */}

@@ -199,7 +199,7 @@ export class SimulationProcessor extends WorkerHost {
             /**
              * Timeline breakdown:
              * Minutes 0-45: First half (0 to 45 real-world minutes)
-             * Minute 45+: Halftime break starts (15 minutes real-world break)
+             * Minute 45 (second half kickoff): Halftime break (revealed at T+60, after 15min break)
              * Minutes 46-90: Second half starts at T+60 (T+45 + 15min break)
              * Minute 90+: Match ends when last event scheduled
              * 
@@ -207,22 +207,60 @@ export class SimulationProcessor extends WorkerHost {
              * Event at minute 46 happens at real-world T+60 (45min play + 15min break)
              */
             
-            if (eventMinute <= 45) {
-                // First half: direct mapping
+            // Special case: Second half kickoff at minute 45 (but type is 'kickoff' for second half)
+            const isSecondHalfKickoff = eventMinute === 45 && 
+                event.type === 'kickoff' && 
+                event.data?.period === 'second_half';
+            
+            // Special case: Extra time kickoff at minute 90
+            const isExtraTimeKickoff = eventMinute === 90 && 
+                event.type === 'kickoff' && 
+                event.data?.period === 'extra_time';
+            
+            // Special case: Extra time second half kickoff at minute 105
+            const isExtraTimeSecondHalfKickoff = eventMinute === 105 && 
+                event.type === 'kickoff' && 
+                event.data?.period === 'extra_time_second_half';
+            
+            if (eventMinute < 45) {
+                // First half: direct mapping (minutes 0-44)
                 realWorldOffset = eventMinute * 60 * 1000;
             }
+            else if (eventMinute === 45 && !isSecondHalfKickoff) {
+                // First half minute 45 events (goals, fouls, etc. at 45')
+                realWorldOffset = 45 * 60 * 1000;
+            }
+            else if (isSecondHalfKickoff) {
+                // Second half kickoff: happens after 15-minute break
+                // Real time = 45min play + 15min break = 60 minutes
+                realWorldOffset = (45 * 60 * 1000) + (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000);
+            }
             else if (eventMinute <= 90) {
-                // Second half: add 15-minute halftime break
+                // Second half (minutes 46-90): add 15-minute halftime break
                 realWorldOffset = eventMinute * 60 * 1000 + (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000);
             }
             else if (match.hasExtraTime) {
-                // Extra time: add main halftime + regular time + ET break
-                if (eventMinute <= 105) {
-                    // ET first half (91-105)
+                // Extra time kickoff events and regular ET events
+                if (isExtraTimeKickoff) {
+                    // Extra time kickoff: happens immediately after regular time ends
+                    // Real time = 90min play + 15min HT = 105 minutes
+                    realWorldOffset = (90 * 60 * 1000) + (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000);
+                }
+                else if (eventMinute < 105) {
+                    // ET first half (91-104): regular events
                     // Real time = 90min play + 15min HT + (eventMinute - 90) ET minutes
                     realWorldOffset = (90 * 60 * 1000) + (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000) + ((eventMinute - 90) * 60 * 1000);
-                } else {
-                    // ET second half (106-120)
+                }
+                else if (isExtraTimeSecondHalfKickoff) {
+                    // ET second half kickoff: happens after 5-minute ET break
+                    // Real time = 90min play + 15min HT + 15min ET1st + 5min ET break
+                    realWorldOffset = (90 * 60 * 1000) + 
+                                    (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000) + 
+                                    (15 * 60 * 1000) + // ET first half
+                                    (GAME_SETTINGS.MATCH_EXTRA_TIME_BREAK_MINUTES * 60 * 1000);
+                }
+                else {
+                    // ET second half (106-120): regular events
                     // Real time = 90min play + 15min HT + 15min ET1st + 5min ET break + (eventMinute - 105) ET2nd minutes
                     realWorldOffset = (90 * 60 * 1000) + 
                                     (GAME_SETTINGS.MATCH_HALF_TIME_MINUTES * 60 * 1000) + 
@@ -249,10 +287,11 @@ export class SimulationProcessor extends WorkerHost {
 
         // 7. Persist Results
         await this.dataSource.transaction(async (manager) => {
-            // Update Match
+            // Update Match - DON'T change status, let scheduler handle it
+            // Simulation completes BEFORE match starts, status should remain TACTICS_LOCKED
             match.homeScore = engine.homeScore;
             match.awayScore = engine.awayScore;
-            match.status = MatchStatus.IN_PROGRESS; // Keep as IN_PROGRESS, scheduler will complete it
+            // match.status stays as TACTICS_LOCKED - scheduler will change to IN_PROGRESS at match start time
             match.simulationCompletedAt = new Date(); // Internal timestamp
             match.actualEndTime = lastEvent?.eventScheduledTime || new Date(); // When match will actually end
             await manager.save(match);

@@ -69,6 +69,11 @@ export class MatchEngine {
             let nextTime = ((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT)) | 0;
             if (nextTime <= lastTime) nextTime = lastTime + 1;
             if (nextTime > 90) nextTime = 90;
+            
+            // Ensure first moment doesn't skip too far (max 10 minutes from start)
+            if (i === 0 && nextTime > 10) {
+                nextTime = Math.min(nextTime, 5 + (Math.random() * 5 | 0));
+            }
 
             this.time = nextTime;
             const delta = this.time - lastTime;
@@ -80,40 +85,25 @@ export class MatchEngine {
                 this.processTacticalInstructions(t);
             }
 
-            // 2. Update Condition gradually - apply decay for each minute in delta
-            // This ensures stamina decays smoothly even with irregular moment intervals
-            for (let min = 0; min < delta; min++) {
-                const isHT = (lastTime + min + 1 === 45); // Halftime recovery happens at minute 45
+            // 2. Update stamina and generate snapshots minute-by-minute
+            // This ensures each snapshot captures the correct stamina state at that exact minute
+            for (let currentMinute = lastTime + 1; currentMinute <= this.time; currentMinute++) {
+                // Apply stamina decay for this minute
+                const isHT = (currentMinute === 45); // Halftime recovery happens at minute 45
                 this.homeTeam.updateCondition(1, isHT);
                 this.awayTeam.updateCondition(1, isHT);
-            }
-
-            // 3. Generate snapshots at exact 5-minute intervals
-            // Check which 5-minute marks we crossed in this time delta
-            const startBlock = Math.floor(lastTime / 5);
-            const endBlock = Math.floor(this.time / 5);
-            
-            // Generate snapshots for each 5-minute mark we passed
-            for (let block = startBlock + 1; block <= endBlock; block++) {
-                const snapshotMinute = block * 5;
-                if (snapshotMinute <= this.time && snapshotMinute <= 90) {
-                    this.homeTeam.updateSnapshot();
-                    this.awayTeam.updateSnapshot();
-                    this.generateSnapshotEvent(snapshotMinute);
-                }
-            }
-            
-            // Special case: halftime snapshot at minute 45 if we crossed it
-            if (isHalfTime && this.time > 45) {
-                // Check if we already generated a snapshot at minute 45
-                const has45Snapshot = (45 % 5 === 0); // minute 45 is a 5-minute mark
-                if (!has45Snapshot) {
-                    this.homeTeam.updateSnapshot();
-                    this.awayTeam.updateSnapshot();
-                    this.generateSnapshotEvent(45);
-                }
                 
-                // Add second half kickoff event
+                // Generate snapshot at special moments: every 5 minutes, minute 45, minute 46 (second half start), minute 90
+                const isSpecialMoment = currentMinute % 5 === 0 || currentMinute === 45 || currentMinute === 46 || currentMinute === 90;
+                if (isSpecialMoment && currentMinute <= 90) {
+                    this.homeTeam.updateSnapshot();
+                    this.awayTeam.updateSnapshot();
+                    this.generateSnapshotEvent(currentMinute);
+                }
+            }
+            
+            // Special case: Add second half kickoff event when crossing minute 45
+            if (isHalfTime && this.time > 45) {
                 this.events.push({
                     minute: 45,
                     type: 'kickoff',
@@ -207,22 +197,17 @@ export class MatchEngine {
                 });
             }
 
-            // Update Condition gradually - one minute at a time
-            for (let min = 0; min < delta; min++) {
+            // Update stamina and generate snapshots minute-by-minute
+            for (let currentMinute = lastTime + 1; currentMinute <= this.time; currentMinute++) {
+                // Apply stamina decay for this minute
                 this.homeTeam.updateCondition(1, false);
                 this.awayTeam.updateCondition(1, false);
-            }
-
-            // Generate snapshots at exact 5-minute intervals (95, 100, 105, 110, 115, 120)
-            const startBlock = Math.floor(lastTime / 5);
-            const endBlock = Math.floor(this.time / 5);
-            
-            for (let block = startBlock + 1; block <= endBlock; block++) {
-                const snapshotMinute = block * 5;
-                if (snapshotMinute > 90 && snapshotMinute <= this.time && snapshotMinute <= 120) {
+                
+                // Generate snapshot if this minute is a 5-minute mark (95, 100, 105, 110, 115, 120)
+                if (currentMinute % 5 === 0 && currentMinute > 90 && currentMinute <= 120) {
                     this.homeTeam.updateSnapshot();
                     this.awayTeam.updateSnapshot();
-                    this.generateSnapshotEvent(snapshotMinute);
+                    this.generateSnapshotEvent(currentMinute);
                 }
             }
 

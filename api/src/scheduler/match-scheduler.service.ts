@@ -32,11 +32,18 @@ export class MatchSchedulerService {
     // ===== SCHEDULER 1: Lock Tactics 30 Minutes Before Match =====
     @Cron('0 * * * * *') // Every minute
     async lockTactics() {
-        this.logger.debug('[TacticsLockScheduler] Checking for matches to lock');
-
         const now = new Date();
+        this.logger.debug(
+            `[TacticsLockScheduler] Running at ${now.toISOString()} - Checking for matches to lock`
+        );
+
         const lockThreshold = new Date(
             now.getTime() + GAME_SETTINGS.MATCH_TACTICS_DEADLINE_MINUTES * 60 * 1000,
+        );
+
+        this.logger.debug(
+            `[TacticsLockScheduler] Looking for matches scheduled before ${lockThreshold.toISOString()} ` +
+            `(${GAME_SETTINGS.MATCH_TACTICS_DEADLINE_MINUTES} minutes from now)`
         );
 
         // Find matches scheduled within next 30 minutes that haven't been locked
@@ -48,16 +55,27 @@ export class MatchSchedulerService {
             },
         });
 
+        this.logger.debug(
+            `[TacticsLockScheduler] Query result: Found ${matches.length} match(es) ` +
+            `(status=SCHEDULED, tacticsLocked=false, scheduledAt<=${lockThreshold.toISOString()})`
+        );
+
         if (matches.length === 0) {
             return;
         }
 
         this.logger.log(
-            `[TacticsLockScheduler] Found ${matches.length} match(es) ready for tactics locking`,
+            `[TacticsLockScheduler] ✅ Found ${matches.length} match(es) ready for tactics locking`,
         );
 
         for (const match of matches) {
             try {
+                this.logger.log(
+                    `[TacticsLockScheduler] Processing match ${match.id}: ` +
+                    `${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'}, ` +
+                    `Scheduled: ${match.scheduledAt.toISOString()}`
+                );
+
                 // Get tactics for both teams
                 const [homeTactics, awayTactics] = await Promise.all([
                     this.tacticsRepository.findOne({
@@ -68,6 +86,12 @@ export class MatchSchedulerService {
                     }),
                 ]);
 
+                this.logger.debug(
+                    `[TacticsLockScheduler] Tactics check - ` +
+                    `Home: ${homeTactics ? '✅ submitted' : '❌ missing'}, ` +
+                    `Away: ${awayTactics ? '✅ submitted' : '❌ missing'}`
+                );
+
                 // Mark forfeits and lock tactics
                 match.homeForfeit = !homeTactics;
                 match.awayForfeit = !awayTactics;
@@ -77,9 +101,37 @@ export class MatchSchedulerService {
                 await this.matchRepository.save(match);
 
                 this.logger.log(
+                    `[TacticsLockScheduler] ✅ Match ${match.id} tactics locked and saved to DB`
+                );
+
+                // Queue simulation job immediately after locking tactics
+                const jobData = {
+                    matchId: match.id,
+                    homeTeamId: match.homeTeamId,
+                    awayTeamId: match.awayTeamId,
+                    homeTactics: homeTactics || null,
+                    awayTactics: awayTactics || null,
+                    homeForfeit: match.homeForfeit,
+                    awayForfeit: match.awayForfeit,
+                    matchType: match.type,
+                };
+
+                this.logger.log(
+                    `[TacticsLockScheduler] 🚀 Queueing simulation job to BullMQ queue 'match-simulation'...`
+                );
+
+                const job = await this.simulationQueue.add('simulate-match', jobData);
+
+                this.logger.log(
+                    `[TacticsLockScheduler] ✅ Simulation job added to BullMQ! ` +
+                    `Job ID: ${job.id}, Match ID: ${match.id}`
+                );
+
+                this.logger.log(
                     `🔒 Tactics locked for match ${match.id} ` +
-                        `(${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'}). ` +
-                        `Scheduled: ${match.scheduledAt.toISOString()}`,
+                    `(${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'}). ` +
+                    `Scheduled: ${match.scheduledAt.toISOString()}. ` +
+                    `Simulation job ${job.id} queued to BullMQ.`,
                 );
             } catch (error) {
                 this.logger.error(
@@ -90,14 +142,14 @@ export class MatchSchedulerService {
         }
     }
 
-    // ===== SCHEDULER 2: Start Match at Scheduled Time =====
+    // ===== SCHEDULER 2: Start Match at Scheduled Time (Mark as IN_PROGRESS) =====
     @Cron('*/30 * * * * *') // Every 30 seconds
     async startMatches() {
         this.logger.debug('[MatchStartScheduler] Checking for matches to start');
 
         const now = new Date();
 
-        // Find matches that should start now
+        // Find matches that should start now (simulation already queued at tactics lock)
         const matches = await this.matchRepository.find({
             where: {
                 status: MatchStatus.TACTICS_LOCKED,
@@ -115,32 +167,10 @@ export class MatchSchedulerService {
 
         for (const match of matches) {
             try {
-                // Update match status to IN_PROGRESS
+                // Update match status to IN_PROGRESS (simulation was already queued at tactics lock)
                 match.status = MatchStatus.IN_PROGRESS;
                 match.startedAt = match.scheduledAt; // Use scheduled time, not current time
                 await this.matchRepository.save(match);
-
-                // Get tactics for simulation
-                const [homeTactics, awayTactics] = await Promise.all([
-                    this.tacticsRepository.findOne({
-                        where: { matchId: match.id, teamId: match.homeTeamId },
-                    }),
-                    this.tacticsRepository.findOne({
-                        where: { matchId: match.id, teamId: match.awayTeamId },
-                    }),
-                ]);
-
-                // Queue simulation job
-                await this.simulationQueue.add('simulate-match', {
-                    matchId: match.id,
-                    homeTeamId: match.homeTeamId,
-                    awayTeamId: match.awayTeamId,
-                    homeTactics: homeTactics || null,
-                    awayTactics: awayTactics || null,
-                    homeForfeit: match.homeForfeit,
-                    awayForfeit: match.awayForfeit,
-                    matchType: match.type,
-                });
 
                 this.logger.log(
                     `⚽ Match started: ${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'} ` +

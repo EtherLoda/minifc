@@ -6,11 +6,16 @@ import { clsx } from 'clsx';
 interface MatchHeaderProps {
     match: Match;
     currentScore?: { home: number; away: number };
+    currentMinute?: number;
 }
 
-export function MatchHeader({ match, currentScore }: MatchHeaderProps) {
+export function MatchHeader({ match, currentScore, currentMinute }: MatchHeaderProps) {
     const isLive = match.status === 'in_progress';
     const isCompleted = match.status === 'completed';
+    const isScheduled = match.status === 'scheduled' || match.status === 'tactics_locked';
+
+    // Debug logging
+    console.log('MatchHeader - Status:', match.status, 'isLive:', isLive, 'isCompleted:', isCompleted, 'isScheduled:', isScheduled, 'currentScore:', currentScore);
 
     // Use currentScore from events if available (for live/in-progress matches),
     // otherwise fall back to match.homeScore/awayScore (for completed matches)
@@ -63,16 +68,30 @@ export function MatchHeader({ match, currentScore }: MatchHeaderProps) {
                                 </span>
                             </div>
                         )}
-                        {(isCompleted || isLive) ? (
-                            <div className="flex items-center gap-4 px-8 py-4 rounded-2xl bg-white dark:bg-emerald-950/60 shadow-lg border-2 border-emerald-500/30">
-                                <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums">
-                                    {displayHomeScore}
-                                </div>
-                                <div className="text-3xl font-bold text-slate-400 dark:text-slate-600">-</div>
-                                <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums">
-                                    {displayAwayScore}
-                                </div>
+                        {isScheduled && (
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-sm font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                                    UPCOMING
+                                </span>
                             </div>
+                        )}
+                        {(isCompleted || isLive) ? (
+                            <>
+                                <div className="flex items-center gap-4 px-8 py-4 rounded-2xl bg-white dark:bg-emerald-950/60 shadow-lg border-2 border-emerald-500/30">
+                                    <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums">
+                                        {displayHomeScore}
+                                    </div>
+                                    <div className="text-3xl font-bold text-slate-400 dark:text-slate-600">-</div>
+                                    <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums">
+                                        {displayAwayScore}
+                                    </div>
+                                </div>
+                                {isLive && currentMinute !== undefined && (
+                                    <div className="mt-2 text-emerald-700 dark:text-emerald-400 text-lg font-bold">
+                                        {currentMinute}'
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <div className="text-4xl font-black text-slate-400 dark:text-slate-600 px-8 py-4 rounded-2xl bg-white/60 dark:bg-emerald-950/40">
                                 VS

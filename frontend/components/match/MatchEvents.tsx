@@ -16,7 +16,8 @@ import {
     CheckCircle2,
     XCircle,
     Angry,
-    Award
+    Award,
+    Activity
 } from 'lucide-react';
 
 interface MatchEventsProps {

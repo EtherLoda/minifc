@@ -8,6 +8,16 @@ async function clearPlayers() {
         await AppDataSource.initialize();
         console.log('✅ Connected\n');
 
+        // Delete in correct order (respecting foreign keys)
+        console.log('🗑️  Deleting player transactions...');
+        await AppDataSource.query('DELETE FROM player_transaction');
+        
+        console.log('🗑️  Deleting auctions...');
+        await AppDataSource.query('DELETE FROM auction');
+        
+        console.log('🗑️  Deleting player history...');
+        await AppDataSource.query('DELETE FROM player_history');
+
         console.log('🗑️  Deleting all players...');
         const result = await AppDataSource
             .createQueryBuilder()

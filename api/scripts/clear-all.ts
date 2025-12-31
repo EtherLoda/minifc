@@ -23,6 +23,15 @@ async function clearAllData() {
         console.log('🗑️  Deleting league standings...');
         await AppDataSource.query('DELETE FROM league_standing');
 
+        console.log('🗑️  Deleting player transactions...');
+        await AppDataSource.query('DELETE FROM player_transaction');
+
+        console.log('🗑️  Deleting auctions...');
+        await AppDataSource.query('DELETE FROM auction');
+
+        console.log('🗑️  Deleting player history...');
+        await AppDataSource.query('DELETE FROM player_history');
+
         console.log('🗑️  Deleting players...');
         await AppDataSource.query('DELETE FROM player');
         console.log(`✅ Deleted all players\n`);

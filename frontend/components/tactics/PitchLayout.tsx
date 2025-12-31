@@ -41,7 +41,9 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
 
     // Defense - Better spacing, staggered center back
     LB: { x: 8, y: 74 }, RB: { x: 92, y: 74 },
+    // Support both CD (Center Defender) and CB (Center Back) naming
     CDL: { x: 34, y: 74 }, CD: { x: 50, y: 77 }, CDR: { x: 66, y: 74 },
+    CBL: { x: 34, y: 74 }, CB: { x: 50, y: 77 }, CBR: { x: 66, y: 74 },
 
     // Goalkeeper
     GK: { x: 50, y: 92 },
