@@ -489,6 +489,9 @@ export const POSITION_WEIGHTS: PositionWeightsMap = {
     // Forwards
     'CF': CF_WEIGHTS,
     'ST': CF_WEIGHTS,
+    'ST1': CF_WEIGHTS,
+    'ST2': CF_WEIGHTS,
+    'ST3': CF_WEIGHTS,
     'CF_L': CF_L_WEIGHTS,
     'CF_R': CF_R_WEIGHTS,
     'LW': LW_WEIGHTS,
@@ -497,6 +500,9 @@ export const POSITION_WEIGHTS: PositionWeightsMap = {
     // Attacking Midfielders
     'AM': AM_WEIGHTS,
     'CAM': AM_WEIGHTS, // Alias
+    'CAM1': AML_WEIGHTS, // Left attacking mid
+    'CAM2': AM_WEIGHTS,  // Center attacking mid
+    'CAM3': AMR_WEIGHTS, // Right attacking mid
     'AML': AML_WEIGHTS,
     'AMR': AMR_WEIGHTS,
 
@@ -506,12 +512,19 @@ export const POSITION_WEIGHTS: PositionWeightsMap = {
 
     // Central Midfielders
     'CM': CM_WEIGHTS,
+    'CM1': CM_WEIGHTS,
+    'CM2': CM_WEIGHTS,
+    'CM3': CM_WEIGHTS,
     'CML': CML_WEIGHTS,
     'CMR': CMR_WEIGHTS,
 
     // Defensive Midfielders
     'DM': DM_WEIGHTS,
     'CDM': DM_WEIGHTS, // Alias
+    'DMF': DM_WEIGHTS, // Alias
+    'DMF1': DM_WEIGHTS,
+    'DMF2': DM_WEIGHTS,
+    'DMF3': DM_WEIGHTS,
     'DML': DML_WEIGHTS,
     'DMR': DMR_WEIGHTS,
 
@@ -523,6 +536,9 @@ export const POSITION_WEIGHTS: PositionWeightsMap = {
     'WBR': WBR_WEIGHTS,
     'RWB': WBR_WEIGHTS, // Alias
     'CB': CB_WEIGHTS,
+    'CB1': CB_WEIGHTS,  // First center back
+    'CB2': CB_WEIGHTS,  // Second center back
+    'CB3': CB_WEIGHTS,  // Third center back (for 3-back formations)
     'CBL': CBL_WEIGHTS,
     'CBR': CBR_WEIGHTS,
 

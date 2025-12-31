@@ -20,6 +20,7 @@ interface LiveMatchViewerProps {
     initialEventsData: MatchEventsResponse;
     initialStats: MatchStatsRes | null;
     matchStatus: string;
+    onScoreUpdate?: (score: { home: number; away: number }) => void; // Callback to update parent
 }
 
 export function LiveMatchViewer({
@@ -31,6 +32,7 @@ export function LiveMatchViewer({
     initialEventsData,
     initialStats,
     matchStatus,
+    onScoreUpdate,
 }: LiveMatchViewerProps) {
     // We use useMatchPolling for regular 5-second updates
     // and useMatchSimulation if we want to manually trigger/follow a simulation.
@@ -42,6 +44,13 @@ export function LiveMatchViewer({
     const canSimulate = matchStatus === 'scheduled' || matchStatus === 'tactics_locked';
     const isLive = matchStatus === 'in_progress';
     const isCompleted = matchStatus === 'completed';
+
+    // Notify parent of score updates
+    useEffect(() => {
+        if (onScoreUpdate && eventsData.currentScore) {
+            onScoreUpdate(eventsData.currentScore);
+        }
+    }, [eventsData.currentScore, onScoreUpdate]);
 
     // Live match minute display
     const [liveMinute, setLiveMinute] = useState(eventsData.currentMinute || 0);
@@ -103,68 +112,6 @@ export function LiveMatchViewer({
 
     return (
         <>
-            {/* Enhanced Match Status Bar */}
-            <div className="mb-6 p-6 rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/30 shadow-xl overflow-hidden relative">
-                {/* Gradient Background */}
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-emerald-400/10 to-emerald-500/5 dark:from-emerald-500/10 dark:via-emerald-400/20 dark:to-emerald-500/10"></div>
-                
-                <div className="relative flex items-center justify-between">
-                    {/* Live Status & Time */}
-                    <div className="flex items-center gap-4">
-                        {isLive && (
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex items-center justify-center w-10 h-10">
-                                    <div className="absolute w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                                    <div className="absolute w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
-                                </div>
-                                <span className="text-sm font-black uppercase tracking-wider text-red-600 dark:text-red-400">
-                                    LIVE
-                                </span>
-                            </div>
-                        )}
-                        {isCompleted && (
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                                <span className="text-sm font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                                    FULL TIME
-                                </span>
-                            </div>
-                        )}
-                        {!isLive && !isCompleted && (
-                            <span className="text-sm font-black uppercase tracking-wider text-slate-600 dark:text-emerald-500">
-                                SCHEDULED
-                            </span>
-                        )}
-
-                        {/* Match Clock */}
-                        {(isLive || isCompleted) && (
-                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-emerald-950/60 border-2 border-emerald-500/30 shadow-sm">
-                                <Clock className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                <span className="text-2xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums">
-                                    {liveMinute}'
-                                </span>
-                                <span className="text-sm text-emerald-700 dark:text-emerald-500">
-                                    / {eventsData.totalMinutes}'
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Score Display */}
-                    {(isLive || isCompleted) && (
-                        <div className="flex items-center gap-4">
-                            <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums tracking-tight">
-                                {eventsData.currentScore?.home || 0}
-                            </div>
-                            <div className="text-3xl font-bold text-slate-400 dark:text-slate-600">-</div>
-                            <div className="text-6xl font-black text-emerald-900 dark:text-emerald-300 tabular-nums tracking-tight">
-                                {eventsData.currentScore?.away || 0}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
             {/* Simulation Control */}
             {canSimulate && (
                 <div className="mb-6">

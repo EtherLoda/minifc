@@ -1,12 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { PlayerState, MatchEvent } from '@/lib/api';
 import { MiniPlayer } from '@/components/MiniPlayer';
 import { generateAppearance } from '@/utils/playerUtils';
-import { Activity, Zap, User, TrendingUp, Goal, Users, Clock } from 'lucide-react';
-
-type ViewMode = 'info' | 'stamina' | 'performance';
 
 interface MatchPitchViewProps {
     homeTeamName: string;
@@ -23,272 +19,220 @@ interface MatchPitchViewProps {
 interface PlayerCardProps {
     player: PlayerState;
     isHome: boolean;
-    viewMode: ViewMode;
     initialStamina?: number; // Player's starting stamina value
+}
+
+// Convert numbered positions to directional names for display
+function formatPositionName(position: string): string {
+    const positionMap: Record<string, string> = {
+        // Center backs
+        'CB1': 'CBL',
+        'CB2': 'CB',
+        'CB3': 'CBR',
+        
+        // Defensive midfielders
+        'DMF1': 'DML',
+        'DMF2': 'DM',
+        'DMF3': 'DMR',
+        'DMF': 'DM',
+        'CDM': 'DM',
+        
+        // Central midfielders
+        'CM1': 'CML',
+        'CM2': 'CM',
+        'CM3': 'CMR',
+        
+        // Attacking midfielders
+        'CAM1': 'AML',
+        'CAM2': 'AM',
+        'CAM3': 'AMR',
+        'CAM': 'AM',
+        
+        // Strikers
+        'ST1': 'CF_L',
+        'ST2': 'CF',
+        'ST3': 'CF_R',
+        'ST': 'CF',
+    };
+    
+    return positionMap[position] || position;
 }
 
 // Position coordinates for horizontal pitch (home on left 0-50%, away on right 50-100%)
 // Home team: 11 positions evenly spread in left half
 // Away team: 11 positions mirrored in right half
 // Total 22 positions across full pitch
-// Y-axis spacing consistent with tactics PitchLayout (±18% from center)
+// Y-axis spacing: Wide positions moved inward from 8%/92% to 12%/88% for better visibility
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
     // ===== GOALKEEPER (x: 5%) =====
     GK: { x: 5, y: 50 },
     
     // ===== DEFENSE (x: 15%) =====
-    LB: { x: 15, y: 8 },    // Left back (wide)
-    CB1: { x: 15, y: 32 },  // Left center back (±18% from center like CM)
-    CB2: { x: 15, y: 50 },  // Center back
-    CB3: { x: 15, y: 68 },  // Right center back (±18% from center)
-    RB: { x: 15, y: 92 },   // Right back (wide)
+    LB: { x: 15, y: 12 },   // Left back (moved inward from 8%)
+    CBL: { x: 15, y: 32 },  // Center back left (±18% from center)
+    CB: { x: 15, y: 50 },   // Center back
+    CBR: { x: 15, y: 68 },  // Center back right (±18% from center)
+    RB: { x: 15, y: 88 },   // Right back (moved inward from 92%)
+    
+    // Backward compatibility aliases
+    CB1: { x: 15, y: 32 },  // Alias for CBL
+    CB2: { x: 15, y: 50 },  // Alias for CB
+    CB3: { x: 15, y: 68 },  // Alias for CBR
     
     // ===== WINGBACKS (x: 20%) =====
-    LWB: { x: 20, y: 8 },   // Left wingback
-    RWB: { x: 20, y: 92 },  // Right wingback
+    LWB: { x: 20, y: 12 },  // Left wingback (moved inward from 8%)
+    WB: { x: 20, y: 50 },   // Center wingback
+    WBR: { x: 20, y: 68 },  // Right wingback
+    RWB: { x: 20, y: 88 },  // Right wingback (moved inward from 92%)
     
     // ===== DEFENSIVE MIDFIELD (x: 25%) =====
-    DMF1: { x: 25, y: 32 }, // Left DMF
-    DMF2: { x: 25, y: 50 }, // Center DMF
-    DMF3: { x: 25, y: 68 }, // Right DMF
+    DML: { x: 25, y: 32 },  // Defensive midfielder left
+    DM: { x: 25, y: 50 },   // Defensive midfielder center
+    DMR: { x: 25, y: 68 },  // Defensive midfielder right
+    CDM: { x: 25, y: 50 },  // Alias for DM
+    
+    // Backward compatibility aliases
+    DMF1: { x: 25, y: 32 }, // Alias for DML
+    DMF2: { x: 25, y: 50 }, // Alias for DM
+    DMF3: { x: 25, y: 68 }, // Alias for DMR
     
     // ===== CENTRAL MIDFIELD (x: 30%) =====
-    LM: { x: 30, y: 8 },    // Left midfielder (wide)
-    CM1: { x: 30, y: 32 },  // Left CM
-    CM2: { x: 30, y: 50 },  // Center CM
-    CM3: { x: 30, y: 68 },  // Right CM
-    RM: { x: 30, y: 92 },   // Right midfielder (wide)
+    LM: { x: 30, y: 12 },   // Left midfielder (moved inward from 8%)
+    CML: { x: 30, y: 32 },  // Central midfielder left
+    CM: { x: 30, y: 50 },   // Central midfielder center
+    CMR: { x: 30, y: 68 },  // Central midfielder right
+    RM: { x: 30, y: 88 },   // Right midfielder (moved inward from 92%)
+    
+    // Backward compatibility aliases
+    CM1: { x: 30, y: 32 },  // Alias for CML
+    CM2: { x: 30, y: 50 },  // Alias for CM
+    CM3: { x: 30, y: 68 },  // Alias for CMR
     
     // ===== ATTACKING MIDFIELD (x: 37%) =====
-    CAM1: { x: 37, y: 32 }, // Left CAM
-    CAM2: { x: 37, y: 50 }, // Center CAM
-    CAM3: { x: 37, y: 68 }, // Right CAM
+    AML: { x: 37, y: 32 },  // Attacking midfielder left
+    AM: { x: 37, y: 50 },   // Attacking midfielder center
+    AMR: { x: 37, y: 68 },  // Attacking midfielder right
+    CAM: { x: 37, y: 50 },  // Alias for AM
+    
+    // Backward compatibility aliases
+    CAM1: { x: 37, y: 32 }, // Alias for AML
+    CAM2: { x: 37, y: 50 }, // Alias for AM
+    CAM3: { x: 37, y: 68 }, // Alias for AMR
     
     // ===== FORWARDS (x: 45%) =====
-    LW: { x: 45, y: 8 },    // Left winger (wide)
-    ST1: { x: 45, y: 32 },  // Left striker
-    ST2: { x: 45, y: 50 },  // Center striker
-    ST3: { x: 45, y: 68 },  // Right striker
-    RW: { x: 45, y: 92 },   // Right winger (wide)
+    LW: { x: 45, y: 12 },   // Left winger (moved inward from 8%)
+    CF_L: { x: 45, y: 32 }, // Center forward left
+    CF: { x: 45, y: 50 },   // Center forward
+    CF_R: { x: 45, y: 68 }, // Center forward right
+    ST: { x: 45, y: 50 },   // Alias for CF
+    RW: { x: 45, y: 88 },   // Right winger (moved inward from 92%)
+    
+    // Backward compatibility aliases
+    ST1: { x: 45, y: 32 },  // Alias for CF_L
+    ST2: { x: 45, y: 50 },  // Alias for CF
+    ST3: { x: 45, y: 68 },  // Alias for CF_R
 };
 
 function PlayerCard({ player, isHome, viewMode, initialStamina }: PlayerCardProps) {
     const appearance = generateAppearance(player.playerId);
     
-    // Stamina calculation with proper initial values:
-    // - Each player has their own initial stamina (3-6 range) from match start
-    // - We calculate percentage relative to THEIR starting stamina, not a fixed max
-    // - 25% buffer rule: display 100% if current >= 75% of their initial stamina
-    
+    // Stamina calculation
     const currentStamina = player.stamina;
-    const playerInitialStamina = initialStamina || 6.0; // Fallback to 6.0 if not provided
-    
-    // Calculate stamina ratio relative to this player's starting value
+    const playerInitialStamina = initialStamina || 6.0;
     const staminaRatio = currentStamina / playerInitialStamina;
     
     // Calculate display percentage with 25% buffer
-    // If stamina >= 75% of their initial stamina, show 100%
-    // Below 75%, scale from 100% to 0%
     let staminaPercentage: number;
-    const bufferThreshold = 0.75; // 75% threshold
+    const bufferThreshold = 0.75;
     
     if (staminaRatio >= bufferThreshold) {
         staminaPercentage = 100;
     } else {
-        // Linear scale from 75% stamina = 100% display to 0% stamina = 0% display
         staminaPercentage = Math.round((staminaRatio / bufferThreshold) * 100);
     }
     
+    // Determine stamina circle color
+    const getStaminaColor = () => {
+        if (staminaPercentage >= 80) return '#10b981'; // green-500
+        if (staminaPercentage >= 60) return '#eab308'; // yellow-500
+        return '#ef4444'; // red-500
+    };
+    
     // Performance = positionalContribution × conditionMultiplier
-    // - positionalContribution: Player's contribution in their position across 3 lanes × 3 phases
-    //   (left/center/right) × (attack/defense/possession) - summed before condition multiplier
-    // - conditionMultiplier: Impact of stamina, form, experience (0.78-1.2+)
-    const contribution = player.positionalContribution || 50; // Fallback if missing
-    const conditionMult = player.conditionMultiplier || 1.0; // Fallback if missing
+    const contribution = player.positionalContribution || 50;
+    const conditionMult = player.conditionMultiplier || 1.0;
     const performance = Math.round(contribution * conditionMult);
     
-    // Info Mode: Show avatar, name, and position (no performance)
-    if (viewMode === 'info') {
-        return (
-            <div className="relative">
-                {/* Rounded Rectangle Card */}
-                <div className={`relative w-[70px] rounded-lg overflow-hidden shadow-lg border-2 ${
-                    isHome 
-                        ? 'border-blue-400 dark:border-blue-500' 
-                        : 'border-red-400 dark:border-red-500'
-                }`}>
-                    {/* Substitute Badge */}
-                    {player.isSubstitute && (
-                        <div className="absolute top-0.5 right-0.5 z-20 bg-orange-500 text-white text-[6px] font-bold px-1 py-0.5 rounded shadow-md">
-                            SUB
-                        </div>
+    // SVG circle properties for stamina ring
+    const circleRadius = 28; // radius of the circle
+    const circleCircumference = 2 * Math.PI * circleRadius;
+    const staminaStrokeDashoffset = circleCircumference * (1 - staminaPercentage / 100);
+    
+    return (
+        <div className="relative flex flex-col items-center">
+            {/* Substitute Badge */}
+            {player.isSubstitute && (
+                <div className="absolute -top-1 -right-1 z-20 bg-orange-500 text-white text-[6px] font-bold px-1 py-0.5 rounded shadow-md">
+                    SUB
+                </div>
+            )}
+            
+            {/* Avatar with Performance & Stamina Circle */}
+            <div className="relative w-16 h-16">
+                {/* Stamina Progress Ring (SVG) */}
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 64 64">
+                    {/* Background circle */}
+                    <circle
+                        cx="32"
+                        cy="32"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="4"
+                        className="dark:stroke-slate-700"
+                    />
+                    {/* Stamina progress circle */}
+                    <circle
+                        cx="32"
+                        cy="32"
+                        r={circleRadius}
+                        fill="none"
+                        stroke={getStaminaColor()}
+                        strokeWidth="4"
+                        strokeDasharray={circleCircumference}
+                        strokeDashoffset={staminaStrokeDashoffset}
+                        strokeLinecap="round"
+                        className="transition-all duration-300"
+                    />
+                </svg>
+                
+                {/* Avatar in center */}
+                <div className="absolute inset-2 rounded-full overflow-hidden border-2 border-white dark:border-slate-800 shadow-lg">
+                    {appearance && (
+                        <MiniPlayer 
+                            appearance={appearance} 
+                            size={48}
+                        />
                     )}
-                    
-                    {/* Top Section: Avatar */}
-                    <div className={`relative h-14 flex items-center justify-center ${
-                        isHome 
-                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800' 
-                            : 'bg-gradient-to-br from-red-600 to-red-700 dark:from-red-700 dark:to-red-800'
-                    }`}>
-                        {appearance && (
-                            <div className="mt-1.5">
-                                <MiniPlayer 
-                                    appearance={appearance} 
-                                    size={50} 
-                                />
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Bottom Section: Info */}
-                    <div className="bg-white dark:bg-slate-900 px-2 py-2">
-                        {/* Name */}
-                        <div className="text-[8px] font-black text-slate-900 dark:text-white truncate text-center mb-1.5">
-                            {player.name.split(' ').pop()}
-                        </div>
-                        
-                        {/* Position - Same height as stamina bar */}
-                        <div className="relative w-full h-3.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex items-center justify-center">
-                            <span className="text-[9px] font-black text-slate-700 dark:text-slate-300">
-                                {player.position}
-                            </span>
-                        </div>
-                    </div>
+                </div>
+                
+                {/* Performance Badge (bottom right of circle) */}
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+                    <span className="text-[10px] font-black text-white">
+                        {performance}
+                    </span>
                 </div>
             </div>
-        );
-    }
-    
-    // Stamina Mode: Show percentage indicator with avatar
-    if (viewMode === 'stamina') {
-        // Determine stamina color
-        const staminaColor = staminaPercentage >= 80 
-            ? { border: 'border-green-500', gradient: 'from-green-500 to-green-600', bg: 'bg-green-500' }
-            : staminaPercentage >= 60 
-            ? { border: 'border-yellow-500', gradient: 'from-yellow-500 to-yellow-600', bg: 'bg-yellow-500' }
-            : { border: 'border-red-500', gradient: 'from-red-500 to-red-600', bg: 'bg-red-500' };
-        
-        return (
-            <div className="relative">
-                {/* Rounded Rectangle Card */}
-                <div className={`relative w-[70px] rounded-lg overflow-hidden shadow-lg border-2 ${staminaColor.border}`}>
-                    {/* Substitute Badge */}
-                    {player.isSubstitute && (
-                        <div className="absolute top-0.5 right-0.5 z-20 bg-orange-500 text-white text-[6px] font-bold px-1 py-0.5 rounded shadow-md">
-                            SUB
-                        </div>
-                    )}
-                    
-                    {/* Top Section: Avatar */}
-                    <div className={`relative h-14 flex items-center justify-center ${
-                        isHome 
-                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800' 
-                            : 'bg-gradient-to-br from-red-600 to-red-700 dark:from-red-700 dark:to-red-800'
-                    }`}>
-                        {appearance && (
-                            <div className="mt-1.5">
-                                <MiniPlayer 
-                                    appearance={appearance} 
-                                    size={50} 
-                                />
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Bottom Section: Stamina Info */}
-                    <div className="bg-white dark:bg-slate-900 px-2 py-2">
-                        {/* Name */}
-                        <div className="text-[8px] font-black text-slate-900 dark:text-white truncate text-center mb-1.5">
-                            {player.name.split(' ').pop()}
-                        </div>
-                        
-                        {/* Stamina Bar */}
-                        <div className="relative w-full h-3.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div 
-                                className={`h-full bg-gradient-to-r ${staminaColor.gradient} transition-all duration-300`}
-                                style={{ width: `${staminaPercentage}%` }}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[9px] font-black text-white drop-shadow-md">
-                                    {staminaPercentage}%
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            
+            {/* Player Name */}
+            <div className="mt-1 text-[8px] font-bold text-slate-900 dark:text-white text-center max-w-[70px] truncate">
+                {player.name.split(' ').pop()}
             </div>
-        );
-    }
-    
-    // Performance Mode: Show current performance (OVR * conditionMultiplier) with avatar
-    if (viewMode === 'performance') {
-        // Determine performance color
-        const performanceColor = performance >= 80 
-            ? { border: 'border-emerald-500', gradient: 'from-emerald-500 to-emerald-600' }
-            : performance >= 60 
-            ? { border: 'border-blue-500', gradient: 'from-blue-500 to-blue-600' }
-            : { border: 'border-slate-500', gradient: 'from-slate-500 to-slate-600' };
-        
-        return (
-            <div className="relative">
-                {/* Rounded Rectangle Card */}
-                <div className={`relative w-[70px] rounded-lg overflow-hidden shadow-lg border-2 ${performanceColor.border}`}>
-                    {/* Substitute Badge */}
-                    {player.isSubstitute && (
-                        <div className="absolute top-0.5 right-0.5 z-20 bg-orange-500 text-white text-[6px] font-bold px-1 py-0.5 rounded shadow-md">
-                            SUB
-                        </div>
-                    )}
-                    
-                    {/* Top Section: Avatar */}
-                    <div className={`relative h-14 flex items-center justify-center ${
-                        isHome 
-                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800' 
-                            : 'bg-gradient-to-br from-red-600 to-red-700 dark:from-red-700 dark:to-red-800'
-                    }`}>
-                        {appearance && (
-                            <div className="mt-1.5">
-                                <MiniPlayer 
-                                    appearance={appearance} 
-                                    size={50} 
-                                />
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Bottom Section: Performance Info */}
-                    <div className="bg-white dark:bg-slate-900 px-2 py-2">
-                        {/* Name */}
-                        <div className="text-[8px] font-black text-slate-900 dark:text-white truncate text-center mb-1.5">
-                            {player.name.split(' ').pop()}
-                        </div>
-                        
-                        {/* Performance Bar - Same height as stamina bar */}
-                        <div className="relative w-full h-3.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div 
-                                className={`h-full bg-gradient-to-r ${performanceColor.gradient} transition-all duration-300 ${
-                                    performance >= 80 ? 'animate-pulse' : ''
-                                }`}
-                                style={{ width: `${Math.min(performance, 100)}%` }}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[9px] font-black text-white drop-shadow-md">
-                                    {performance}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    
-    return null;
+        </div>
+    );
 }
 
 export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPlayers, initialStamina }: MatchPitchViewProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>('info');
-    
     const homeStarters = homePlayers.filter(p => !p.isSubstitute);
     const homeSubs = homePlayers.filter(p => p.isSubstitute);
     const awayStarters = awayPlayers.filter(p => !p.isSubstitute);
@@ -308,9 +252,9 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
 
     return (
         <div className="rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-emerald-900/10 shadow-lg overflow-hidden">
-            {/* Header with both teams and view mode toggle */}
+            {/* Header with both teams */}
             <div className="p-4 border-b-2 border-emerald-500/40 dark:border-emerald-500/30 bg-white/80 dark:bg-emerald-950/40 backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between">
                     <div className="text-left">
                         <h3 className="text-lg font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
                             {homeTeamName}
@@ -326,43 +270,6 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
                         </h3>
                         <p className="text-xs text-red-700 dark:text-red-400 mt-1">Away</p>
                     </div>
-                </div>
-                
-                {/* View Mode Toggle */}
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        onClick={() => setViewMode('info')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            viewMode === 'info'
-                                ? 'bg-emerald-600 text-white shadow-md'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                        }`}
-                    >
-                        <User className="h-3.5 w-3.5" />
-                        <span>Player Info</span>
-                    </button>
-                    <button
-                        onClick={() => setViewMode('stamina')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            viewMode === 'stamina'
-                                ? 'bg-yellow-600 text-white shadow-md'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                        }`}
-                    >
-                        <Zap className="h-3.5 w-3.5" />
-                        <span>Stamina</span>
-                    </button>
-                    <button
-                        onClick={() => setViewMode('performance')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            viewMode === 'performance'
-                                ? 'bg-purple-600 text-white shadow-md'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                        }`}
-                    >
-                        <TrendingUp className="h-3.5 w-3.5" />
-                        <span>Performance</span>
-                    </button>
                 </div>
             </div>
 
@@ -412,7 +319,6 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
                                     <PlayerCard 
                                         player={player} 
                                         isHome={true} 
-                                        viewMode={viewMode} 
                                         initialStamina={initialStamina?.get(player.playerId)}
                                     />
                                 </div>
@@ -442,7 +348,6 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
                                     <PlayerCard 
                                         player={player} 
                                         isHome={false} 
-                                        viewMode={viewMode}
                                         initialStamina={initialStamina?.get(player.playerId)}
                                     />
                                 </div>
@@ -466,7 +371,6 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
                                             <PlayerCard 
                                                 player={player} 
                                                 isHome={true} 
-                                                viewMode={viewMode}
                                                 initialStamina={initialStamina?.get(player.playerId)}
                                             />
                                         </div>
@@ -487,7 +391,6 @@ export function MatchPitchView({ homeTeamName, awayTeamName, homePlayers, awayPl
                                             <PlayerCard 
                                                 player={player} 
                                                 isHome={false} 
-                                                viewMode={viewMode}
                                                 initialStamina={initialStamina?.get(player.playerId)}
                                             />
                                         </div>

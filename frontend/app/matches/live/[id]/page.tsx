@@ -1,39 +1,73 @@
-import React, { Suspense } from 'react';
+'use client';
+
+import React, { Suspense, useState } from 'react';
 import { api } from '@/lib/api';
 import { MatchHeader } from '@/components/match/MatchHeader';
 import { LiveMatchViewer } from '@/components/match/LiveMatchViewer';
 import { Skeleton } from '@/components/ui/SkeletonLoader';
 import Link from 'next/link';
+import { use } from 'react';
 
-async function MatchData({ id }: { id: string }) {
-    const match = await api.getMatch(id);
-    
-    // Try to get events data - may not exist for scheduled matches
-    let eventsData = null;
-    try {
-        eventsData = await api.getMatchEvents(id);
-    } catch (e) {
-        // Events don't exist yet for scheduled/tactics_locked matches
-        // Create a minimal events data structure
-        eventsData = {
-            matchId: id,
-            currentMinute: 0,
-            totalMinutes: 90,
-            isComplete: false,
-            events: [],
-            currentScore: {
-                home: 0,
-                away: 0
-            },
-            stats: null
-        };
-    }
+function MatchData({ id }: { id: string }) {
+    const [match, setMatch] = useState<any>(null);
+    const [eventsData, setEventsData] = useState<any>(null);
+    const [stats, setStats] = useState<any>(null);
+    const [currentScore, setCurrentScore] = useState<{ home: number; away: number }>({ home: 0, away: 0 });
+    const [loading, setLoading] = useState(true);
 
-    let stats = null;
-    try {
-        stats = await api.getMatchStats(id);
-    } catch (e) {
-        // Ignore error if stats not found
+    React.useEffect(() => {
+        async function fetchData() {
+            try {
+                const matchData = await api.getMatch(id);
+                setMatch(matchData);
+
+                // Try to get events data
+                let events: any = null;
+                try {
+                    events = await api.getMatchEvents(id);
+                } catch (e) {
+                    // Events don't exist yet
+                    events = {
+                        matchId: id,
+                        currentMinute: 0,
+                        totalMinutes: 90,
+                        isComplete: false,
+                        events: [],
+                        currentScore: { home: 0, away: 0 },
+                        stats: null
+                    };
+                }
+
+                // Ensure currentScore exists
+                if (!events.currentScore) {
+                    events.currentScore = { home: 0, away: 0 };
+                }
+
+                setEventsData(events);
+                setCurrentScore(events.currentScore);
+
+                // Try to get stats
+                try {
+                    const matchStats = await api.getMatchStats(id);
+                    setStats(matchStats);
+                } catch (e) {
+                    // Stats not available
+                }
+            } catch (error) {
+                console.error('Error fetching match data:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
+    }, [id]);
+
+    const handleScoreUpdate = (score: { home: number; away: number }) => {
+        setCurrentScore(score);
+    };
+
+    if (loading || !match || !eventsData) {
+        return <MatchLoadingSkeleton />;
     }
 
     return (
@@ -54,7 +88,7 @@ async function MatchData({ id }: { id: string }) {
 
                 {/* Match Header */}
                 <div className="mb-8">
-                    <MatchHeader match={match} currentScore={eventsData.currentScore} />
+                    <MatchHeader match={match} currentScore={currentScore} />
                 </div>
 
                 {/* Live Match Viewer with Simulation Control */}
@@ -67,6 +101,7 @@ async function MatchData({ id }: { id: string }) {
                     initialEventsData={eventsData}
                     initialStats={stats}
                     matchStatus={match.status}
+                    onScoreUpdate={handleScoreUpdate}
                 />
             </div>
         </div>
@@ -117,12 +152,8 @@ function MatchLoadingSkeleton() {
     );
 }
 
-export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
+export default function MatchPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
 
-    return (
-        <Suspense fallback={<MatchLoadingSkeleton />}>
-            <MatchData id={id} />
-        </Suspense>
-    );
+    return <MatchData id={id} />;
 }

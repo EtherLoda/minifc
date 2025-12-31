@@ -2,7 +2,22 @@
 import React from 'react';
 import { MatchEvent } from '@/lib/api';
 import { clsx } from 'clsx';
-import { Goal, Shield, Flag, AlertTriangle, ArrowRightLeft, Activity, Radio, TrendingUp, Users } from 'lucide-react';
+import { 
+    Goal, 
+    Shield, 
+    Flag, 
+    AlertCircle,
+    ArrowRightLeft, 
+    Target,
+    TrendingUp, 
+    Users,
+    Swords,
+    Play,
+    CheckCircle2,
+    XCircle,
+    Angry,
+    Award
+} from 'lucide-react';
 
 interface MatchEventsProps {
     events: MatchEvent[];
@@ -20,29 +35,81 @@ export function MatchEvents({ events, homeTeamId, awayTeamId }: MatchEventsProps
     });
     const sortedEvents = [...displayEvents].sort((a, b) => b.minute - a.minute);
 
-    const getIcon = (type: string) => {
-        switch (type) {
-            case 'GOAL': return <Goal size={16} className="text-current" />;
-            case 'SAVE': return <Shield size={16} className="text-current" />;
+    const getIcon = (type: string | number | undefined) => {
+        // Defensive type checking: ensure type is a string before calling toUpperCase()
+        const typeStr = typeof type === 'string' ? type.toUpperCase() : String(type || '').toUpperCase();
+        
+        switch (typeStr) {
+            // Goal events
+            case 'GOAL': 
+            case 'PENALTY_GOAL':
+                return <Goal size={16} className="text-current" />;
+            
+            // Save/Defense events
+            case 'SAVE': 
+                return <Shield size={16} className="text-current" />;
+            
+            // Miss/Block events
+            case 'MISS':
             case 'SHOT_OFF_TARGET': 
+            case 'SHOT_BLOCKED':
+                return <XCircle size={16} className="text-current" />;
+            
+            // Shot events
             case 'SHOT_ON_TARGET':
             case 'SHOT':
-                return <Activity size={16} className="text-current" />;
-            case 'INTERCEPTION': return <ArrowRightLeft size={16} className="text-current" />;
-            case 'POSSESSION':
-            case 'POSSESSION_CHANGE':
-                return <Radio size={16} className="text-current" />;
+                return <Target size={16} className="text-current" />;
+            
+            // Turnover/Interception
+            case 'INTERCEPTION': 
+            case 'TURNOVER':
+                return <ArrowRightLeft size={16} className="text-current" />;
+            
+            // Attack/Counter
             case 'ATTACK':
             case 'COUNTER_ATTACK':
+            case 'ATTACK_SEQUENCE':
                 return <TrendingUp size={16} className="text-current" />;
+            
+            // Midfield/Tackle
             case 'MIDFIELD_BATTLE':
             case 'TACKLE':
-                return <Users size={16} className="text-current" />;
+                return <Swords size={16} className="text-current" />;
+            
+            // Cards
             case 'YELLOW_CARD':
-                return <Flag size={16} className="text-yellow-600" />;
+                return <AlertCircle size={16} className="text-yellow-600 dark:text-yellow-500" />;
             case 'RED_CARD':
-                return <Flag size={16} className="text-red-700" />;
-            default: return <Activity size={16} className="text-current" />;
+                return <Angry size={16} className="text-red-700 dark:text-red-600" />;
+            
+            // Match flow events
+            case 'KICKOFF':
+                return <Play size={16} className="text-current" />;
+            case 'FULL_TIME':
+            case 'HALF_TIME':
+                return <CheckCircle2 size={16} className="text-current" />;
+            
+            // Fouls
+            case 'FOUL':
+            case 'PENALTY':
+                return <Flag size={16} className="text-current" />;
+            
+            // Substitutions
+            case 'SUBSTITUTION':
+            case 'TACTICAL_CHANGE':
+                return <Users size={16} className="text-current" />;
+            
+            // Injury
+            case 'INJURY':
+                return <AlertCircle size={16} className="text-orange-600 dark:text-orange-500" />;
+            
+            // Awards (player of the match, etc.)
+            case 'AWARD':
+            case 'MOTM':
+                return <Award size={16} className="text-current" />;
+            
+            default: 
+                return <Flag size={16} className="text-current" />;
         }
     };
 
@@ -58,8 +125,8 @@ export function MatchEvents({ events, homeTeamId, awayTeamId }: MatchEventsProps
                 </p>
             </div>
 
-            {/* Events List - WeChat Style */}
-            <div className="max-h-[600px] overflow-y-auto p-6 space-y-4">
+            {/* Events List - Timeline Style */}
+            <div className="max-h-[600px] overflow-y-auto p-6 space-y-3">
                 {sortedEvents.length === 0 ? (
                     <div className="text-center py-12">
                         <Activity className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
@@ -68,82 +135,71 @@ export function MatchEvents({ events, homeTeamId, awayTeamId }: MatchEventsProps
                     </div>
                 ) : (
                     sortedEvents.map((event, index) => {
-                        const isHome = event.teamId === homeTeamId;
-                        const isImportant = ['GOAL', 'RED_CARD', 'PENALTY'].includes(event.type);
-
-                        // Get bubble color based on event type
-                        const getBubbleColor = () => {
-                            if (isImportant) {
-                                return isHome 
-                                    ? 'bg-emerald-500 text-white dark:bg-emerald-600' 
-                                    : 'bg-red-500 text-white dark:bg-red-600';
-                            }
-                            return isHome
-                                ? 'bg-blue-100 text-slate-900 dark:bg-blue-900/40 dark:text-blue-100'
-                                : 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-slate-100';
+                        // Determine event team affiliation
+                        const isHomeEvent = event.teamId === homeTeamId;
+                        const isAwayEvent = event.teamId === awayTeamId;
+                        const isNeutral = !isHomeEvent && !isAwayEvent;
+                        
+                        // Get time badge background color
+                        const getTimeBadgeColor = () => {
+                            if (isHomeEvent) return 'bg-blue-500 text-white dark:bg-blue-600';
+                            if (isAwayEvent) return 'bg-red-500 text-white dark:bg-red-600';
+                            return 'bg-slate-400 text-white dark:bg-slate-600';
                         };
 
                         return (
                             <div
-                                key={event.id}
-                                className={clsx(
-                                    "flex items-start gap-2 animate-in slide-in-from-top-2 fade-in-0",
-                                    isHome ? "flex-row" : "flex-row-reverse"
-                                )}
-                                style={{ animationDelay: `${index * 50}ms` }}
+                                key={event.id || index}
+                                className="flex items-start gap-4 animate-in slide-in-from-top-2 fade-in-0"
+                                style={{ animationDelay: `${index * 30}ms` }}
                             >
-                                {/* Minute Badge */}
-                                <div className="flex-shrink-0 mt-1">
-                                    <div className="px-2 py-1 rounded-md bg-slate-200/80 dark:bg-slate-700/60 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                                        {event.minute}'
+                                {/* Time Badge - Left Side with Circular Background */}
+                                <div className="flex-shrink-0">
+                                    <div className={clsx(
+                                        "w-12 h-12 rounded-full flex items-center justify-center shadow-md",
+                                        getTimeBadgeColor()
+                                    )}>
+                                        <span className="text-sm font-black tabular-nums">
+                                            {event.minute}'
+                                        </span>
                                     </div>
                                 </div>
 
-                                {/* Message Bubble - WeChat Style */}
-                                <div
-                                    className={clsx(
-                                        "relative max-w-[75%] px-4 py-3 rounded-2xl shadow-sm",
-                                        getBubbleColor(),
-                                        isHome ? "rounded-tl-sm" : "rounded-tr-sm"
-                                    )}
-                                >
-                                    {/* Event Type Header */}
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className={clsx(
-                                            "flex-shrink-0",
-                                            isImportant ? "text-white" : ""
-                                        )}>
-                                            {getIcon(event.type)}
-                                        </div>
-                                        <span className={clsx(
-                                            "text-xs font-bold uppercase tracking-wider",
-                                            isImportant ? "text-white" : "text-slate-700 dark:text-slate-300"
-                                        )}>
-                                            {event.typeName.replace(/_/g, ' ')}
-                                        </span>
-                                    </div>
-
-                                    {/* Description */}
-                                    {event.data?.description && (
-                                        <p className={clsx(
-                                            "text-sm leading-relaxed",
-                                            isImportant ? "text-white" : "text-slate-800 dark:text-slate-200"
-                                        )}>
-                                            {event.data.description}
-                                        </p>
-                                    )}
-
-                                    {/* Player Name */}
-                                    {event.data?.playerName && (
-                                        <div className="mt-2">
-                                            <span className={clsx(
-                                                "text-xs font-semibold",
-                                                isImportant ? "text-white/90" : "text-emerald-700 dark:text-emerald-400"
+                                {/* Event Content - Right Side */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="bg-white dark:bg-slate-800/60 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700/50 p-4">
+                                        {/* Event Type with Icon */}
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className={clsx(
+                                                "flex-shrink-0",
+                                                isHomeEvent && "text-blue-600 dark:text-blue-400",
+                                                isAwayEvent && "text-red-600 dark:text-red-400",
+                                                isNeutral && "text-slate-600 dark:text-slate-400"
                                             )}>
-                                                👤 {event.data.playerName}
+                                                {getIcon(event.typeName || event.type)}
+                                            </div>
+                                            <span className={clsx(
+                                                "text-xs font-bold uppercase tracking-wider",
+                                                isHomeEvent && "text-blue-700 dark:text-blue-300",
+                                                isAwayEvent && "text-red-700 dark:text-red-300",
+                                                isNeutral && "text-slate-700 dark:text-slate-300"
+                                            )}>
+                                                {event.typeName?.replace(/_/g, ' ') || (typeof event.type === 'string' ? event.type.replace(/_/g, ' ') : String(event.type))}
                                             </span>
                                         </div>
-                                    )}
+
+                                        {/* Description */}
+                                        <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+                                            {event.data?.description || event.description || 'No description'}
+                                        </p>
+
+                                        {/* Additional Details */}
+                                        {event.data?.playerName && (
+                                            <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                                                👤 {event.data.playerName}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );

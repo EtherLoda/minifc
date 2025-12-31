@@ -6,11 +6,12 @@ import { Player } from '../types/player.types';
 
 export interface MatchEvent {
     minute: number;
-    type: 'goal' | 'miss' | 'save' | 'turnover' | 'advance' | 'snapshot' | 'shot' | 'corner' | 'foul' | 'yellow_card' | 'red_card' | 'offside' | 'substitution' | 'injury' | 'penalty_goal' | 'penalty_miss' | 'kickoff' | 'full_time' | 'tactical_change';
+    type: 'goal' | 'miss' | 'save' | 'turnover' | 'advance' | 'snapshot' | 'shot' | 'corner' | 'foul' | 'yellow_card' | 'red_card' | 'offside' | 'substitution' | 'injury' | 'penalty_goal' | 'penalty_miss' | 'kickoff' | 'full_time' | 'tactical_change' | 'attack_sequence';
     description: string;
     teamName?: string;
     teamId?: string;
     playerId?: string;
+    relatedPlayerId?: string; // For assists, second yellow cards, etc.
     data?: any;
     eventScheduledTime?: Date; // Real-world time when this event should be revealed (calculated by processor)
 }
@@ -79,18 +80,50 @@ export class MatchEngine {
                 this.processTacticalInstructions(t);
             }
 
-            // 2. Update Condition (Decay)
-            this.homeTeam.updateCondition(delta, isHalfTime);
-            this.awayTeam.updateCondition(delta, isHalfTime);
+            // 2. Update Condition gradually - apply decay for each minute in delta
+            // This ensures stamina decays smoothly even with irregular moment intervals
+            for (let min = 0; min < delta; min++) {
+                const isHT = (lastTime + min + 1 === 45); // Halftime recovery happens at minute 45
+                this.homeTeam.updateCondition(1, isHT);
+                this.awayTeam.updateCondition(1, isHT);
+            }
 
-            // 3. Regular Snapshot Update (every 5 mins)
-            const currentBlock = (this.time / 5) | 0;
-            const lastBlock = (lastTime / 5) | 0;
-
-            if (currentBlock > lastBlock || isHalfTime) {
-                this.homeTeam.updateSnapshot();
-                this.awayTeam.updateSnapshot();
-                this.generateSnapshotEvent(this.time);
+            // 3. Generate snapshots at exact 5-minute intervals
+            // Check which 5-minute marks we crossed in this time delta
+            const startBlock = Math.floor(lastTime / 5);
+            const endBlock = Math.floor(this.time / 5);
+            
+            // Generate snapshots for each 5-minute mark we passed
+            for (let block = startBlock + 1; block <= endBlock; block++) {
+                const snapshotMinute = block * 5;
+                if (snapshotMinute <= this.time && snapshotMinute <= 90) {
+                    this.homeTeam.updateSnapshot();
+                    this.awayTeam.updateSnapshot();
+                    this.generateSnapshotEvent(snapshotMinute);
+                }
+            }
+            
+            // Special case: halftime snapshot at minute 45 if we crossed it
+            if (isHalfTime && this.time > 45) {
+                // Check if we already generated a snapshot at minute 45
+                const has45Snapshot = (45 % 5 === 0); // minute 45 is a 5-minute mark
+                if (!has45Snapshot) {
+                    this.homeTeam.updateSnapshot();
+                    this.awayTeam.updateSnapshot();
+                    this.generateSnapshotEvent(45);
+                }
+                
+                // Add second half kickoff event
+                this.events.push({
+                    minute: 45,
+                    type: 'kickoff',
+                    description: 'Second half begins!',
+                    data: {
+                        period: 'second_half',
+                        homeScore: this.homeScore,
+                        awayScore: this.awayScore
+                    }
+                });
             }
 
             const initialEventCount = this.events.length;
@@ -127,6 +160,18 @@ export class MatchEngine {
         const MOMENTS_COUNT = 7;
         const MINS_PER_MOMENT = 30 / MOMENTS_COUNT;
 
+        // Extra Time Kickoff Event
+        this.events.push({
+            minute: 90,
+            type: 'kickoff',
+            description: 'Extra time begins!',
+            data: {
+                period: 'extra_time',
+                homeScore: this.homeScore,
+                awayScore: this.awayScore
+            }
+        });
+
         // Extra Time Break Recovery (Recover 50% of HT)
         this.homeTeam.updateCondition(0, true); // Simplified recovery for now
         this.awayTeam.updateCondition(0, true);
@@ -146,19 +191,39 @@ export class MatchEngine {
 
             this.time = nextTime;
             const delta = this.time - lastTime;
+            
+            // Check for start of second half of extra time (105 minutes)
+            const isExtraTimeSecondHalf = lastTime <= 105 && this.time > 105;
+            if (isExtraTimeSecondHalf) {
+                this.events.push({
+                    minute: 105,
+                    type: 'kickoff',
+                    description: 'Second half of extra time begins!',
+                    data: {
+                        period: 'extra_time_second_half',
+                        homeScore: this.homeScore,
+                        awayScore: this.awayScore
+                    }
+                });
+            }
 
-            // Update Condition
-            this.homeTeam.updateCondition(delta);
-            this.awayTeam.updateCondition(delta);
+            // Update Condition gradually - one minute at a time
+            for (let min = 0; min < delta; min++) {
+                this.homeTeam.updateCondition(1, false);
+                this.awayTeam.updateCondition(1, false);
+            }
 
-            // Snapshot Update (every 5 mins)
-            const currentBlock = (this.time / 5) | 0;
-            const lastBlock = (lastTime / 5) | 0;
-
-            if (currentBlock > lastBlock) {
-                this.homeTeam.updateSnapshot();
-                this.awayTeam.updateSnapshot();
-                this.generateSnapshotEvent(this.time);
+            // Generate snapshots at exact 5-minute intervals (95, 100, 105, 110, 115, 120)
+            const startBlock = Math.floor(lastTime / 5);
+            const endBlock = Math.floor(this.time / 5);
+            
+            for (let block = startBlock + 1; block <= endBlock; block++) {
+                const snapshotMinute = block * 5;
+                if (snapshotMinute > 90 && snapshotMinute <= this.time && snapshotMinute <= 120) {
+                    this.homeTeam.updateSnapshot();
+                    this.awayTeam.updateSnapshot();
+                    this.generateSnapshotEvent(snapshotMinute);
+                }
             }
 
             // Simulate Moment
@@ -352,27 +417,79 @@ export class MatchEngine {
         // Step 1: Foul Check (Small random chance)
         if (Math.random() < 0.08) {
             this.resolveFoul();
+            return; // Foul interrupts the play
         }
 
-        // Step 2: Possession Battle
+        // Step 2: Midfield Battle (Possession)
         const homeControl = this.homeTeam.calculateLaneStrength(this.currentLane, 'possession');
         const awayControl = this.awayTeam.calculateLaneStrength(this.currentLane, 'possession');
-
         const homeWinsPossession = this.resolveDuel(homeControl, awayControl, 0.02, 0);
 
         this.possessionTeam = homeWinsPossession ? this.homeTeam : this.awayTeam;
         this.defendingTeam = homeWinsPossession ? this.awayTeam : this.homeTeam;
 
-        // Step 3: Threat Calculation (Attack vs Defense)
+        // Step 3: Attack Push (Attack vs Defense)
         const ATTACK_SCALAR = 1.15;
         const attPower = this.possessionTeam.calculateLaneStrength(this.currentLane, 'attack') * ATTACK_SCALAR;
         const defPower = this.defendingTeam.calculateLaneStrength(this.currentLane, 'defense');
+        const pushSuccess = this.resolveDuel(attPower, defPower, 0.025, 0);
 
-        const threatSuccess = this.resolveDuel(attPower, defPower, 0.025, 0);
+        // Step 4: Shot attempt (if push successful)
+        let shotResult: 'goal' | 'save' | 'blocked' | 'no_shot' = 'no_shot';
+        let shooter: TacticalPlayer | null = null;
+        let assistPlayer: TacticalPlayer | null = null;
+        let finalShootRating = 0;
+        let gkRating = 0;
 
-        if (threatSuccess) {
-            this.resolveFinish();
+        if (pushSuccess) {
+            shooter = this.selectShooter(this.possessionTeam);
+            if (shooter) {
+                const player = shooter.player as Player;
+                const attrs = player.attributes;
+                const shootRatingRaw = (attrs.finishing * 4) + (attrs.composure * 3) + (attrs.positioning * 2) + (attrs.strength * 1);
+                const distanceFactor = 0.6 + (Math.random() * 0.5);
+                finalShootRating = shootRatingRaw * distanceFactor;
+
+                const gk = this.defendingTeam.getGoalkeeper();
+                gkRating = 100;
+                if (gk) {
+                    gkRating = this.defendingTeam.getSnapshot()?.gkRating || 100;
+                }
+
+                const isGoal = this.resolveDuel(finalShootRating, gkRating, 0.03, 0);
+
+                // 65% chance to have an assist
+                if (Math.random() < 0.65) {
+                    assistPlayer = this.selectAssist(this.possessionTeam, shooter);
+                }
+
+                shotResult = isGoal ? 'goal' : 'save';
+            } else {
+                shotResult = 'blocked';
+            }
         }
+
+        // Record the complete attack sequence as ONE event
+        this.recordAttackSequence({
+            lane: this.currentLane,
+            midfieldBattle: {
+                homeStrength: homeControl,
+                awayStrength: awayControl,
+                winner: homeWinsPossession ? 'home' : 'away'
+            },
+            attackPush: {
+                attackPower: attPower,
+                defensePower: defPower,
+                success: pushSuccess
+            },
+            shot: shotResult === 'no_shot' ? null : {
+                result: shotResult,
+                shooter: shooter,
+                assist: assistPlayer,
+                shootRating: finalShootRating,
+                gkRating: gkRating
+            }
+        });
     }
 
     private resolveFoul() {
@@ -415,53 +532,94 @@ export class MatchEngine {
         }
     }
 
-    private resolveFinish() {
-        const shooter = this.selectShooter(this.possessionTeam);
-        if (!shooter) {
-            this.events.push({
-                minute: this.time,
-                type: 'miss',
-                teamName: this.possessionTeam.name,
-                description: `Pressure by ${this.defendingTeam.name} forces a turnover!`
-            });
-            return;
-        }
-
-        const player = shooter.player as Player;
-        const attrs = player.attributes;
-        const shootRatingRaw = (attrs.finishing * 4) + (attrs.composure * 3) + (attrs.positioning * 2) + (attrs.strength * 1);
-
-        const distanceFactor = 0.6 + (Math.random() * 0.5);
-        const finalShootRating = shootRatingRaw * distanceFactor;
-
-        const gk = this.defendingTeam.getGoalkeeper();
-        let gkRating = 100;
-        if (gk) {
-            gkRating = this.defendingTeam.getSnapshot()?.gkRating || 100;
-        }
-
-        const isGoal = this.resolveDuel(finalShootRating, gkRating, 0.03, 0);
-
-        if (isGoal) {
-            this.events.push({
-                minute: this.time,
-                type: 'goal',
-                teamName: this.possessionTeam.name,
-                playerId: player.id,
-                description: `GOAL! ${player.name} scores for ${this.possessionTeam.name}!`
-            });
+    private recordAttackSequence(sequence: {
+        lane: Lane;
+        midfieldBattle: { homeStrength: number; awayStrength: number; winner: 'home' | 'away' };
+        attackPush: { attackPower: number; defensePower: number; success: boolean };
+        shot: { result: 'goal' | 'save' | 'blocked'; shooter: TacticalPlayer | null; assist: TacticalPlayer | null; shootRating: number; gkRating: number } | null;
+    }) {
+        const { lane, midfieldBattle, attackPush, shot } = sequence;
+        
+        // Determine overall result
+        let finalResult: 'goal' | 'save' | 'blocked' | 'defense_stopped';
+        let eventType: MatchEvent['type'];
+        
+        if (shot) {
+            finalResult = shot.result;
+            eventType = shot.result === 'goal' ? 'goal' : (shot.result === 'save' ? 'save' : 'miss');
+        } else if (attackPush.success) {
+            finalResult = 'blocked';
+            eventType = 'miss';
         } else {
-            this.events.push({
-                minute: this.time,
-                type: 'save',
-                teamName: this.defendingTeam.name,
-                description: `Shot by ${player.name} saved by ${this.defendingTeam.name} goalkeeper!`
-            });
+            finalResult = 'defense_stopped';
+            eventType = 'turnover';
         }
+
+        // Build description
+        let description = '';
+        const possessor = midfieldBattle.winner === 'home' ? this.homeTeam.name : this.awayTeam.name;
+        const defender = midfieldBattle.winner === 'home' ? this.awayTeam.name : this.homeTeam.name;
+        
+        if (finalResult === 'goal' && shot?.shooter) {
+            const shooterName = (shot.shooter.player as Player).name;
+            const assistName = shot.assist ? (shot.assist.player as Player).name : null;
+            description = assistName 
+                ? `⚽ GOAL! ${shooterName} scores for ${possessor}! Assisted by ${assistName}`
+                : `⚽ GOAL! ${shooterName} scores for ${possessor}!`;
+        } else if (finalResult === 'save' && shot?.shooter) {
+            const shooterName = (shot.shooter.player as Player).name;
+            description = `🧤 ${possessor} attacks through ${lane}, but ${shooterName}'s shot is saved by ${defender}'s goalkeeper!`;
+        } else if (finalResult === 'blocked') {
+            description = `🛡️ ${possessor} wins possession in ${lane} and pushes forward, but the attack is blocked under pressure from ${defender}!`;
+        } else {
+            description = `⚔️ ${possessor} wins possession in ${lane}, but ${defender} defends successfully and stops the attack!`;
+        }
+
+        // Build event data
+        const eventData: any = {
+            sequence: {
+                midfieldBattle: {
+                    homeTeam: this.homeTeam.name,
+                    awayTeam: this.awayTeam.name,
+                    homeStrength: parseFloat(midfieldBattle.homeStrength.toFixed(2)),
+                    awayStrength: parseFloat(midfieldBattle.awayStrength.toFixed(2)),
+                    winner: midfieldBattle.winner === 'home' ? this.homeTeam.name : this.awayTeam.name
+                },
+                attackPush: {
+                    attackingTeam: possessor,
+                    defendingTeam: defender,
+                    attackPower: parseFloat(attackPush.attackPower.toFixed(2)),
+                    defensePower: parseFloat(attackPush.defensePower.toFixed(2)),
+                    success: attackPush.success
+                },
+                shot: shot ? {
+                    result: shot.result,
+                    shooter: shot.shooter ? (shot.shooter.player as Player).name : null,
+                    shooterId: shot.shooter ? (shot.shooter.player as Player).id : null,
+                    assist: shot.assist ? (shot.assist.player as Player).name : null,
+                    assistId: shot.assist ? (shot.assist.player as Player).id : null,
+                    shootRating: parseFloat(shot.shootRating.toFixed(2)),
+                    gkRating: parseFloat(shot.gkRating.toFixed(2))
+                } : null
+            },
+            lane: lane,
+            finalResult: finalResult
+        };
+
+        // Create the event
+        this.events.push({
+            minute: this.time,
+            type: eventType,
+            teamName: possessor,
+            playerId: shot?.shooter ? (shot.shooter.player as Player).id : undefined,
+            relatedPlayerId: shot?.assist ? (shot.assist.player as Player).id : undefined,
+            description: description,
+            data: eventData
+        });
     }
 
     private selectShooter(team: Team): TacticalPlayer {
-        const candidates = team.players;
+        const candidates = team.players.filter(p => !p.isSentOff);
         const len = candidates.length;
         // CFs focus
         for (let i = 0; i < len; i++) {
@@ -475,6 +633,33 @@ export class MatchEngine {
         }
         // Fallback
         return candidates[(Math.random() * len) | 0];
+    }
+
+    private selectAssist(team: Team, shooter: TacticalPlayer): TacticalPlayer | null {
+        // Get all players except the shooter and GK
+        const candidates = team.players.filter(p => 
+            !p.isSentOff && 
+            p !== shooter && 
+            !p.positionKey.includes('GK')
+        );
+        
+        if (candidates.length === 0) return null;
+        
+        // Prioritize midfielders and wingers for assists
+        const preferredAssisters = candidates.filter(p => 
+            p.positionKey.includes('AM') || 
+            p.positionKey.includes('CM') || 
+            p.positionKey.includes('W') ||
+            p.positionKey.includes('M')
+        );
+        
+        if (preferredAssisters.length > 0 && Math.random() < 0.7) {
+            // 70% chance to pick from preferred assisters
+            return preferredAssisters[(Math.random() * preferredAssisters.length) | 0];
+        }
+        
+        // Otherwise pick any outfield player
+        return candidates[(Math.random() * candidates.length) | 0];
     }
 
     private resolveDuel(valA: number, valB: number, k: number, offset: number): boolean {

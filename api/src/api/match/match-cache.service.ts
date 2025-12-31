@@ -3,6 +3,23 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { MatchEventEntity, MatchStatus } from '@goalxi/database';
 
+// Plain object interface for caching (no TypeORM metadata)
+interface CachedMatchEvent {
+    id: string;
+    matchId: string;
+    minute: number;
+    second: number;
+    type: number;
+    typeName: string;
+    teamId?: string;
+    playerId?: string;
+    relatedPlayerId?: string;
+    data?: Record<string, any>;
+    eventScheduledTime?: Date;
+    isRevealed: boolean;
+    createdAt: Date;
+}
+
 @Injectable()
 export class MatchCacheService {
     private readonly logger = new Logger(MatchCacheService.name);
@@ -13,10 +30,11 @@ export class MatchCacheService {
     async getMatchEvents(matchId: string): Promise<MatchEventEntity[] | null> {
         try {
             const key = `match_events:${matchId}`;
-            const events = await this.cacheManager.get<MatchEventEntity[]>(key);
-            if (events) {
+            const cachedEvents = await this.cacheManager.get<CachedMatchEvent[]>(key);
+            if (cachedEvents) {
                 this.logger.debug(`Cache hit for match events ${matchId}`);
-                return events;
+                // Convert plain objects back to entities (shallow conversion)
+                return cachedEvents as any[];
             }
             return null;
         } catch (error) {
@@ -28,10 +46,26 @@ export class MatchCacheService {
     async cacheMatchEvents(matchId: string, events: MatchEventEntity[]): Promise<void> {
         try {
             const key = `match_events:${matchId}`;
-            await this.cacheManager.set(key, events, this.CACHE_TTL);
+            // Convert entities to plain objects for caching (removes TypeORM metadata)
+            const plainEvents: CachedMatchEvent[] = events.map(e => ({
+                id: e.id,
+                matchId: e.matchId,
+                minute: e.minute,
+                second: e.second,
+                type: e.type,
+                typeName: e.typeName,
+                teamId: e.teamId,
+                playerId: e.playerId,
+                relatedPlayerId: e.relatedPlayerId,
+                data: e.data,
+                eventScheduledTime: e.eventScheduledTime,
+                isRevealed: e.isRevealed,
+                createdAt: e.createdAt,
+            }));
+            await this.cacheManager.set(key, plainEvents, this.CACHE_TTL);
             this.logger.debug(`Cached ${events.length} events for match ${matchId}`);
         } catch (error) {
-            this.logger.error(`Error caching match events: ${error.message}`);
+            this.logger.error(`Error caching match events: ${error.message}`, error.stack);
         }
     }
 

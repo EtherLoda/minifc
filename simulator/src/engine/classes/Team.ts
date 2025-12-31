@@ -91,6 +91,25 @@ export class Team {
             }
         }
 
+        // Round all lane strengths to 2 decimal places
+        const roundedLaneStrengths: TeamSnapshot['laneStrengths'] = {
+            left: {
+                attack: parseFloat(laneStrengths.left.attack.toFixed(2)),
+                defense: parseFloat(laneStrengths.left.defense.toFixed(2)),
+                possession: parseFloat(laneStrengths.left.possession.toFixed(2))
+            },
+            center: {
+                attack: parseFloat(laneStrengths.center.attack.toFixed(2)),
+                defense: parseFloat(laneStrengths.center.defense.toFixed(2)),
+                possession: parseFloat(laneStrengths.center.possession.toFixed(2))
+            },
+            right: {
+                attack: parseFloat(laneStrengths.right.attack.toFixed(2)),
+                defense: parseFloat(laneStrengths.right.defense.toFixed(2)),
+                possession: parseFloat(laneStrengths.right.possession.toFixed(2))
+            }
+        };
+
         // GK Rating
         const gk = this.getGoalkeeper();
         let gkRating = 100;
@@ -106,11 +125,11 @@ export class Team {
             );
 
             const rawRating = AttributeCalculator.calculateGKSaveRating(player);
-            gkRating = rawRating * multiplier;
+            gkRating = parseFloat((rawRating * multiplier).toFixed(2));
         }
 
         this.snapshot = {
-            laneStrengths,
+            laneStrengths: roundedLaneStrengths,
             gkRating
         };
     }

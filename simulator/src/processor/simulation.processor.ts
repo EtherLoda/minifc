@@ -181,9 +181,14 @@ export class SimulationProcessor extends WorkerHost {
         }
 
         // 6. Calculate Event Scheduled Times
+        // Ensure matchStartTime is in UTC by creating a new Date from ISO string
         const matchStartTime = new Date(match.scheduledAt);
+        // Force to UTC by getting the time value directly
+        const matchStartTimeUTC = new Date(matchStartTime.toISOString());
+        
         this.logger.log(
-            `[Simulator] Calculating event scheduled times (match starts: ${matchStartTime.toISOString()})\n` +
+            `[Simulator] Calculating event scheduled times (match starts: ${matchStartTimeUTC.toISOString()})
+` +
             `  1st half injury time: ${firstHalfInjuryTime}min, 2nd half injury time: ${secondHalfInjuryTime}min`
         );
         
@@ -227,16 +232,17 @@ export class SimulationProcessor extends WorkerHost {
                 }
             }
             
-            event.eventScheduledTime = new Date(matchStartTime.getTime() + realWorldOffset);
+            // Create event scheduled time in UTC
+            event.eventScheduledTime = new Date(matchStartTimeUTC.getTime() + realWorldOffset);
         }
         
         const lastEvent = events[events.length - 1];
         const totalDuration = lastEvent?.eventScheduledTime 
-            ? (lastEvent.eventScheduledTime.getTime() - matchStartTime.getTime()) / (60 * 1000)
+            ? (lastEvent.eventScheduledTime.getTime() - matchStartTimeUTC.getTime()) / (60 * 1000)
             : 0;
         
         this.logger.log(
-            `[Simulator] Events will be revealed from ${matchStartTime.toISOString()} ` +
+            `[Simulator] Events will be revealed from ${matchStartTimeUTC.toISOString()} ` +
             `to ${lastEvent?.eventScheduledTime?.toISOString() || 'unknown'}\n` +
             `  Total events: ${events.length}, Real-world duration: ~${Math.ceil(totalDuration)} minutes`
         );
@@ -294,10 +300,10 @@ export class SimulationProcessor extends WorkerHost {
 
     private mapEventType(type: string): number {
         const mapping: Record<string, number> = {
-            'kickoff': 0, 'goal': 1, 'shot': 3, 'miss': 3, 'save': 4,
-            'yellow_card': 5, 'red_card': 6, 'substitution': 7, 'foul': 9,
-            'offside': 10, 'corner': 11, 'penalty_goal': 12, 'penalty_miss': 13,
-            'full_time': 14, 'turnover': 20, 'snapshot': 21
+            'kickoff': 1, 'goal': 2, 'shot': 3, 'miss': 4, 'save': 8,
+            'yellow_card': 10, 'red_card': 11, 'substitution': 12, 'foul': 9,
+            'offside': 16, 'corner': 17, 'penalty_goal': 2, 'penalty_miss': 4,
+            'full_time': 14, 'turnover': 5, 'snapshot': 21
         };
         return mapping[type] || 99;
     }

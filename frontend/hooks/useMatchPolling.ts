@@ -39,7 +39,7 @@ export function useMatchPolling(matchId: string, initialData?: MatchEventsRespon
             if (document.visibilityState === 'visible' && shouldPollRef.current) {
                 fetchData();
             }
-        }, 5 * 60 * 1000); // 5 minutes
+        }, 5 * 1000); // 5 seconds
 
         // Handle visibility change
         const handleVisibilityChange = () => {

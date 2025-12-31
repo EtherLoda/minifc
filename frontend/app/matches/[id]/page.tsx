@@ -26,8 +26,6 @@ export default function TeamMatchesPage({ params }: PageProps) {
             try {
                 const [teamData, matchesData] = await Promise.all([
                     api.getTeam(teamId),
-                    // Fetch all matches for the team's league to show the full context if needed, 
-                    // or just team matches. Let's fetch by teamId since we are on the team fixtures page.
                     api.getMatches(undefined, 1, teamId)
                 ]);
                 setTeam(teamData);
@@ -41,6 +39,50 @@ export default function TeamMatchesPage({ params }: PageProps) {
 
         fetchData();
     }, [teamId]);
+
+    // Poll for live match updates every 5 seconds
+    useEffect(() => {
+        const updateLiveMatches = async () => {
+            // Find matches that are in_progress
+            const liveMatches = matches.filter(m => m.status === 'in_progress');
+            
+            if (liveMatches.length === 0) return;
+
+            // Fetch current scores for live matches
+            const updatedMatches = await Promise.all(
+                liveMatches.map(async (match) => {
+                    try {
+                        const events = await api.getMatchEvents(match.id);
+                        return {
+                            ...match,
+                            homeScore: events.currentScore?.home ?? match.homeScore,
+                            awayScore: events.currentScore?.away ?? match.awayScore
+                        };
+                    } catch (e) {
+                        return match; // Keep original if events not available
+                    }
+                })
+            );
+
+            // Update the matches state with new scores
+            setMatches(prevMatches =>
+                prevMatches.map(m => {
+                    const updated = updatedMatches.find(um => um.id === m.id);
+                    return updated || m;
+                })
+            );
+        };
+
+        // Initial update
+        if (matches.length > 0) {
+            updateLiveMatches();
+        }
+
+        // Poll every 5 seconds
+        const interval = setInterval(updateLiveMatches, 5000);
+
+        return () => clearInterval(interval);
+    }, [matches.length]); // Only depend on matches.length to avoid infinite loops
 
     if (loading) {
         return (
