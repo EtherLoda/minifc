@@ -32,6 +32,13 @@ export class MatchCompletionService {
     async completeMatch(matchId: string): Promise<void> {
         this.logger.log(`Completing match ${matchId}...`);
 
+        // Check if stats already processed to avoid double counting
+        const isProcessed = await this.matchCacheService.isMatchProcessed(matchId);
+        if (isProcessed) {
+            this.logger.warn(`Match ${matchId} statistics already processed. Skipping duplicated job.`);
+            return;
+        }
+
         const match = await this.matchRepository.findOne({
             where: { id: matchId },
             relations: ['homeTeam', 'awayTeam'],
@@ -42,15 +49,12 @@ export class MatchCompletionService {
             return;
         }
 
-        if (match.status === MatchStatus.COMPLETED) {
-            this.logger.warn(`Match ${matchId} is already completed. Skipping.`);
-            return;
+        // 1. Update Match status (only if not already updated by scheduler)
+        if (match.status !== MatchStatus.COMPLETED) {
+            match.status = MatchStatus.COMPLETED;
+            match.completedAt = match.completedAt || new Date();
+            await this.matchRepository.save(match);
         }
-
-        // 1. Update Match status
-        match.status = MatchStatus.COMPLETED;
-        match.completedAt = new Date();
-        await this.matchRepository.save(match);
 
         // 2. Update League Standings
         await this.updateLeagueStandings(match);
@@ -58,7 +62,10 @@ export class MatchCompletionService {
         // 3. Update Player Stats
         await this.updatePlayerStats(matchId);
 
-        // 4. Invalidate Cache
+        // 4. Mark as processed in cache
+        await this.matchCacheService.setMatchProcessed(matchId);
+
+        // 5. Invalidate Cache
         await this.matchCacheService.invalidateMatchCache(matchId);
 
         this.logger.log(`Match ${matchId} completion processing finished.`);
@@ -132,33 +139,52 @@ export class MatchCompletionService {
 
         const playerStatsUpdate = new Map<string, { goals: number, assists: number, yellowCards: number, redCards: number, appearances: number }>();
 
-        // 1. Initialise appearances from Tactics
+        // 1. Initialise appearances from Lineups
         const tactics = await this.tacticsRepository.find({ where: { matchId } });
         for (const t of tactics) {
+            // Starters
             for (const playerId of Object.values(t.lineup)) {
                 if (typeof playerId === 'string') {
                     this.ensurePlayerInMap(playerStatsUpdate, playerId);
+                }
+            }
+            // Substitutes (who were actually called to play, according to tactics)
+            if (t.substitutions) {
+                for (const sub of t.substitutions) {
+                    this.ensurePlayerInMap(playerStatsUpdate, sub.in);
                 }
             }
         }
 
         // 2. Add stats from events
         for (const event of events) {
+            const type = (event.typeName || '').toLowerCase();
+
+            // Handle main player in the event
             if (event.playerId) {
                 this.ensurePlayerInMap(playerStatsUpdate, event.playerId);
                 const stats = playerStatsUpdate.get(event.playerId)!;
 
-                if (event.typeName === 'goal' || event.typeName === 'penalty_goal') {
+                if (type === 'goal' || type === 'penalty_goal') {
                     stats.goals += 1;
-                } else if (event.typeName === 'assist') {
-                    stats.assists += 1;
-                } else if (event.typeName === 'yellow_card') {
+                } else if (type === 'yellow_card') {
                     stats.yellowCards += 1;
-                } else if (event.typeName === 'red_card') {
+                } else if (type === 'red_card') {
                     stats.redCards += 1;
+                } else if (type === 'substitution') {
+                    // Re-ensure sub player gets credit if they had an event
+                    stats.appearances = 1;
                 }
             }
-            // Add assist handling if data.assistPlayerId exists
+
+            // Handle assisting player (stored in relatedPlayerId for goal events)
+            if (event.relatedPlayerId && (type === 'goal' || type === 'penalty_goal')) {
+                this.ensurePlayerInMap(playerStatsUpdate, event.relatedPlayerId);
+                const assistStats = playerStatsUpdate.get(event.relatedPlayerId)!;
+                assistStats.assists += 1;
+            }
+
+            // Backward compatibility for data.assistPlayerId
             if (event.data?.assistPlayerId) {
                 this.ensurePlayerInMap(playerStatsUpdate, event.data.assistPlayerId);
                 playerStatsUpdate.get(event.data.assistPlayerId)!.assists += 1;

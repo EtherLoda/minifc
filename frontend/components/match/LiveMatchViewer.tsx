@@ -8,6 +8,8 @@ import { TeamLineupView } from '@/components/match/TeamLineupView';
 import { MatchPitchView } from '@/components/match/MatchPitchView';
 import { MatchTimeline } from '@/components/match/MatchTimeline';
 import { TacticalAnalysis } from '@/components/match/TacticalAnalysis';
+import { MatchSummary } from '@/components/match/MatchSummary';
+import { MatchHighlights } from '@/components/match/MatchHighlights';
 import { MatchEventsResponse, MatchStatsRes, TeamSnapshot } from '@/lib/api';
 import { Play, Loader2, Clock } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -46,6 +48,9 @@ export function LiveMatchViewer({
     const isLive = matchStatus === 'in_progress';
     const isCompleted = matchStatus === 'completed';
 
+    // Consolidate current stats (prefer real-time data from polling/sim if available)
+    const currentStats = (data as any)?.stats || initialStats;
+
     // Notify parent of score updates
     useEffect(() => {
         if (onScoreUpdate && eventsData.currentScore) {
@@ -55,7 +60,7 @@ export function LiveMatchViewer({
 
     // Live match minute display
     const [liveMinute, setLiveMinute] = useState(eventsData.currentMinute || 0);
-    
+
     // Selected minute for timeline scrubbing
     const [selectedMinute, setSelectedMinute] = useState(eventsData.currentMinute || 0);
 
@@ -68,48 +73,117 @@ export function LiveMatchViewer({
         }
     }, [eventsData.currentMinute]);
 
-    // Extract player states from snapshot at selected minute
+    // Extract and hydrate player states from snapshot at selected minute
     const { homeSnapshot, awaySnapshot, initialStamina } = useMemo(() => {
-        // Find all snapshot events
         const snapshotEvents = eventsData.events.filter(e => {
             const typeName = typeof e.typeName === 'string' ? e.typeName.toUpperCase() : '';
             const type = typeof e.type === 'string' ? e.type.toUpperCase() : '';
             return typeName === 'SNAPSHOT' || type === 'SNAPSHOT';
+        }).sort((a, b) => a.minute - b.minute);
+
+        const firstSnapshot = snapshotEvents[0];
+        if (!firstSnapshot) return { homeSnapshot: null, awaySnapshot: null, initialStamina: new Map() };
+
+        // Helper to extract team data (handles both old and new compressed format)
+        const getRawTeam = (data: any, side: 'h' | 'a') => {
+            const oldKey = side === 'h' ? 'home' : 'away';
+            return data[side] || data[oldKey];
+        };
+
+        // Static Registry from Min 0 (Full Snapshot)
+        const staticRegistry = new Map<string, any>();
+        const hydrateTeam = (rawTeam: any) => {
+            if (!rawTeam) return null;
+
+            // Map compressed to full
+            const ps = rawTeam.ps || rawTeam.players || [];
+            const hydratedPlayers = ps.map((p: any) => {
+                const id = p.id || p.playerId;
+
+                // If it's a compressed player state, hydrate it
+                const hydrated = {
+                    playerId: id,
+                    name: p.n || p.name || staticRegistry.get(id)?.name,
+                    position: p.p || p.position,
+                    stamina: p.st !== undefined ? p.st : p.stamina,
+                    form: p.f !== undefined ? p.f : p.form,
+                    overall: p.o || p.overall || staticRegistry.get(id)?.overall,
+                    conditionMultiplier: p.cm !== undefined ? p.cm : p.conditionMultiplier,
+                    contribution: p.pc,
+                    multiplier: p.cm,
+                    entryMinute: p.em || 0,
+                    appearance: p.ap || staticRegistry.get(id)?.appearance,
+                    experience: p.ex || p.experience || staticRegistry.get(id)?.experience,
+                    age: p.age !== undefined ? p.age : staticRegistry.get(id)?.age,
+                    ageDays: p.ad !== undefined ? p.ad : staticRegistry.get(id)?.ageDays,
+                };
+
+                // Save to registry if data is present
+                if (hydrated.name) staticRegistry.set(id, {
+                    name: hydrated.name,
+                    appearance: hydrated.appearance,
+                    age: hydrated.age,
+                    ageDays: hydrated.ageDays,
+                    entryMinute: hydrated.entryMinute,
+                });
+
+                return hydrated;
+            });
+
+            // Map Lane Strengths
+            const rawLs = rawTeam.ls || rawTeam.laneStrengths;
+            const hydratedLs: any = {};
+            if (rawLs) {
+                Object.entries(rawLs).forEach(([lane, phases]: [string, any]) => {
+                    hydratedLs[lane] = {
+                        attack: phases.atk !== undefined ? phases.atk : phases.attack,
+                        defense: phases.def !== undefined ? phases.def : phases.defense,
+                        possession: phases.pos !== undefined ? phases.pos : phases.possession,
+                    };
+                });
+            }
+
+            return {
+                teamName: rawTeam.n || rawTeam.teamName,
+                gkRating: rawTeam.gk !== undefined ? rawTeam.gk : rawTeam.gkRating,
+                laneStrengths: hydratedLs,
+                players: hydratedPlayers
+            } as TeamSnapshot;
+        };
+
+        // Pre-fill registry with Min 0
+        hydrateTeam(getRawTeam(firstSnapshot.data, 'h'));
+        hydrateTeam(getRawTeam(firstSnapshot.data, 'a'));
+
+        // Initial Stamina Map (needed for UI progress bars)
+        const initialStaminaMap = new Map<string, number>();
+        staticRegistry.forEach((val, id) => {
+            // Find in first snapshot specifically for starting stamina
+            const hPlayers = (getRawTeam(firstSnapshot.data, 'h')?.ps || getRawTeam(firstSnapshot.data, 'h')?.players || []);
+            const aPlayers = (getRawTeam(firstSnapshot.data, 'a')?.ps || getRawTeam(firstSnapshot.data, 'a')?.players || []);
+            const p = hPlayers.find((x: any) => (x.id || x.playerId) === id) ||
+                aPlayers.find((x: any) => (x.id || x.playerId) === id);
+            if (p) initialStaminaMap.set(id, p.st || p.stamina);
         });
 
-        // Get the first snapshot (minute 0) to extract initial stamina values
-        const firstSnapshot = snapshotEvents
-            .sort((a, b) => a.minute - b.minute)[0];
-        
-        // Create a map of playerId -> initial stamina from minute 0
-        const initialStaminaMap = new Map<string, number>();
-        if (firstSnapshot?.data) {
-            const homeData = firstSnapshot.data.home as TeamSnapshot | null;
-            const awayData = firstSnapshot.data.away as TeamSnapshot | null;
-            
-            homeData?.players?.forEach(p => {
-                initialStaminaMap.set(p.playerId, p.stamina);
-            });
-            awayData?.players?.forEach(p => {
-                initialStaminaMap.set(p.playerId, p.stamina);
-            });
-        }
-
-        // Find the snapshot closest to (but not after) the selected minute
+        // Get relevant snapshot
         const relevantSnapshot = snapshotEvents
             .filter(s => s.minute <= selectedMinute)
-            .sort((a, b) => b.minute - a.minute)[0]; // Get the most recent one
+            .pop(); // Last one <= selectedMinute
 
         if (!relevantSnapshot?.data) {
             return { homeSnapshot: null, awaySnapshot: null, initialStamina: initialStaminaMap };
         }
 
         return {
-            homeSnapshot: relevantSnapshot.data.home as TeamSnapshot | null,
-            awaySnapshot: relevantSnapshot.data.away as TeamSnapshot | null,
+            homeSnapshot: hydrateTeam(getRawTeam(relevantSnapshot.data, 'h')),
+            awaySnapshot: hydrateTeam(getRawTeam(relevantSnapshot.data, 'a')),
             initialStamina: initialStaminaMap
         };
     }, [eventsData.events, selectedMinute]);
+
+    // Get current events (for highlights) - uses latest available data
+    const currentEvents = simData?.events || pollingData?.events || initialEventsData.events;
 
     return (
         <>
@@ -186,93 +260,48 @@ export function LiveMatchViewer({
                     </div>
                 )}
 
-                {/* Events Timeline - Centered with Multiple Templates */}
-                <div className="max-w-4xl mx-auto">
-                    <EventTimeline
-                        events={eventsData.events.filter(e => {
-                            // Filter out snapshot events from timeline
-                            const typeName = typeof e.typeName === 'string' ? e.typeName.toUpperCase() : '';
-                            const type = typeof e.type === 'string' ? e.type.toUpperCase() : '';
-                            return typeName !== 'SNAPSHOT' && type !== 'SNAPSHOT';
-                        })}
-                        isLive={isLive}
-                        currentMinute={liveMinute}
-                        currentScore={eventsData.currentScore}
-                    />
-                </div>
 
-                {/* Match Stats - Two Columns Below */}
-                {initialStats && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Home Team Stats */}
-                        <div className="rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/30 bg-white dark:bg-emerald-950/20 shadow-lg overflow-hidden">
-                            <div className="p-5 border-b-2 border-emerald-500/40 dark:border-emerald-500/30 bg-white/80 dark:bg-emerald-950/40 backdrop-blur-sm">
-                                <h3 className="text-lg font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300">
-                                    {homeTeamName}
-                                </h3>
-                                <p className="text-xs text-emerald-700 dark:text-emerald-500 mt-1">Home Team Stats</p>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                {initialStats.home && Object.entries(initialStats.home).map(([key, value]) => (
-                                    <div key={key} className="space-y-2">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">
-                                                {key.replace(/_/g, ' ')}
-                                            </span>
-                                            <span className="font-black text-emerald-900 dark:text-emerald-300 text-lg tabular-nums">
-                                                {typeof value === 'number' ? value : value}
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-blue-500 dark:bg-blue-600 rounded-full transition-all duration-500"
-                                                style={{ 
-                                                    width: typeof value === 'number' 
-                                                        ? `${Math.min(100, (value / 20) * 100)}%` 
-                                                        : '0%' 
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Away Team Stats */}
-                        <div className="rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/30 bg-white dark:bg-emerald-950/20 shadow-lg overflow-hidden">
-                            <div className="p-5 border-b-2 border-emerald-500/40 dark:border-emerald-500/30 bg-white/80 dark:bg-emerald-950/40 backdrop-blur-sm">
-                                <h3 className="text-lg font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300">
-                                    {awayTeamName}
-                                </h3>
-                                <p className="text-xs text-emerald-700 dark:text-emerald-500 mt-1">Away Team Stats</p>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                {initialStats.away && Object.entries(initialStats.away).map(([key, value]) => (
-                                    <div key={key} className="space-y-2">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">
-                                                {key.replace(/_/g, ' ')}
-                                            </span>
-                                            <span className="font-black text-emerald-900 dark:text-emerald-300 text-lg tabular-nums">
-                                                {typeof value === 'number' ? value : value}
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-red-500 dark:bg-red-600 rounded-full transition-all duration-500"
-                                                style={{ 
-                                                    width: typeof value === 'number' 
-                                                        ? `${Math.min(100, (value / 20) * 100)}%` 
-                                                        : '0%' 
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                {/* Events Timeline and Highlights - Side by Side */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    {/* Events Timeline */}
+                    <div className="md:col-span-2">
+                        <EventTimeline
+                            events={eventsData.events.filter(e => {
+                                // Filter out snapshot events from timeline
+                                const typeName = typeof e.typeName === 'string' ? e.typeName.toUpperCase() : '';
+                                const type = typeof e.type === 'string' ? e.type.toUpperCase() : '';
+                                return typeName !== 'SNAPSHOT' && type !== 'SNAPSHOT';
+                            })}
+                            isLive={isLive}
+                            currentMinute={liveMinute}
+                            currentScore={eventsData.currentScore}
+                            homeTeamName={homeTeamName}
+                            awayTeamName={awayTeamName}
+                        />
                     </div>
-                )}
+
+                    {/* Match Highlights & Summary */}
+                    <div className="md:col-span-1 space-y-6">
+                        <MatchHighlights
+                            events={currentEvents}
+                            homeTeamName={homeTeamName}
+                            awayTeamName={awayTeamName}
+                        />
+
+                        {isCompleted && homeSnapshot && awaySnapshot && (
+                            <MatchSummary
+                                homeTeamName={homeTeamName}
+                                awayTeamName={awayTeamName}
+                                homeSnapshot={homeSnapshot}
+                                awaySnapshot={awaySnapshot}
+                                homeShots={currentStats?.home?.shots || 0}
+                                awayShots={currentStats?.away?.shots || 0}
+                                homeGoals={eventsData.currentScore?.home || 0}
+                                awayGoals={eventsData.currentScore?.away || 0}
+                            />
+                        )}
+                    </div>
+                </div>
             </div>
         </>
     );

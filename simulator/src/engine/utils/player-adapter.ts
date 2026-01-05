@@ -52,7 +52,9 @@ export class PlayerAdapter {
             currentStamina: entity.stamina || 3,
             form: entity.form || 5,
             experience: entity.experience || 10,
-            overall: this.calculateOverall(entity.currentSkills)
+            overall: this.calculateOverall(entity.currentSkills),
+            exactAge: entity.getExactAge(),
+            appearance: entity.appearance
         };
     }
 
@@ -68,7 +70,9 @@ export class PlayerAdapter {
             currentStamina: 3,
             form: 5,
             experience: 0,
-            overall: 50
+            overall: 50,
+            exactAge: entity.birthday ? entity.getExactAge() : [0, 0],
+            appearance: entity.appearance
         };
     }
 
@@ -78,7 +82,7 @@ export class PlayerAdapter {
      */
     private static calculateOverall(skills: any): number {
         if (!skills) return 50; // Default fallback
-        
+
         let total = 0;
         let count = 0;
 

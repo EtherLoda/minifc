@@ -12,7 +12,7 @@ import { convertAppearance, generateAppearance } from '@/utils/playerUtils';
 
 async function PlayerData({ id }: { id: string }) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/players/[id]/page.tsx:12',message:'PlayerData function entry',data:{playerId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/cda15cfd-2b2c-4a7c-8f03-3a70d4e1a536', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app/players/[id]/page.tsx:12', message: 'PlayerData function entry', data: { playerId: id }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
     // #endregion
     const player = await api.getPlayer(id);
     const team = await api.getTeam(player.teamId);
@@ -189,7 +189,7 @@ async function PlayerData({ id }: { id: string }) {
                                     <span className="text-lg font-mono font-bold px-4 py-2 rounded-lg border 
                                         bg-slate-50 border-slate-200 text-slate-600
                                         dark:bg-black/40 dark:border-emerald-500/30 dark:text-emerald-600">
-                                        AGE {player.age}, DAY {player.ageDays}
+                                        {player.age},{player.ageDays}
                                     </span>
                                     {player.potentialTier && (
                                         <PotentialBadge tier={player.potentialTier as any} size="lg" />
@@ -241,8 +241,8 @@ async function PlayerData({ id }: { id: string }) {
                             Player Attributes
                         </h2>
                     </div>
-                    <SkillBars 
-                        currentSkills={player.currentSkills} 
+                    <SkillBars
+                        currentSkills={player.currentSkills}
                         potentialSkills={player.potentialSkills}
                         isGoalkeeper={player.isGoalkeeper}
                     />

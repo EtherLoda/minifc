@@ -78,4 +78,24 @@ export class MatchCacheService {
             this.logger.error(`Error invalidating match cache: ${error.message}`);
         }
     }
+
+    async isMatchProcessed(matchId: string): Promise<boolean> {
+        try {
+            const key = `match_stats_processed:${matchId}`;
+            const processed = await this.cacheManager.get(key);
+            return !!processed;
+        } catch (error) {
+            this.logger.error(`Error checking match processed status: ${error.message}`);
+            return false;
+        }
+    }
+
+    async setMatchProcessed(matchId: string): Promise<void> {
+        try {
+            const key = `match_stats_processed:${matchId}`;
+            await this.cacheManager.set(key, true, this.CACHE_TTL);
+        } catch (error) {
+            this.logger.error(`Error setting match processed status: ${error.message}`);
+        }
+    }
 }

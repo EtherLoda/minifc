@@ -48,6 +48,7 @@ export class PlayerService {
         const [currentSkills, potentialSkills] = this.generateRandomSkills(reqDto.isGoalkeeper || false);
         const player = new PlayerEntity({
             name: reqDto.name,
+            nationality: reqDto.nationality,
             teamId: reqDto.teamId,
             birthday: reqDto.birthday,
             appearance: reqDto.appearance || this.generateRandomAppearance(),
@@ -69,6 +70,7 @@ export class PlayerService {
         const player = await PlayerEntity.findOneByOrFail({ id });
 
         if (reqDto.name) player.name = reqDto.name;
+        if (reqDto.nationality !== undefined) player.nationality = reqDto.nationality;
         if (reqDto.teamId !== undefined) player.teamId = reqDto.teamId;
         if (reqDto.birthday) player.birthday = reqDto.birthday;
         if (reqDto.appearance) {

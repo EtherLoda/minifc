@@ -18,8 +18,8 @@ export class Team {
             const p = players[i];
             const player = p.player as Player;
             this.playerToIdx.set(player.id, i);
-            this.playerFitness[i] = player.currentStamina;
-            p.isOriginal = true;
+            this.playerFitness[i] = player.currentStamina || 3.0;
+            p.entryMinute = 0;
         }
     }
 
@@ -163,9 +163,8 @@ export class Team {
             this.playerToIdx.set(newPlayer.id, index);
 
             this.playerFitness[index] = newPlayer.currentStamina || 3.0;
-            inTacticalPlayer.isOriginal = false;
+            inTacticalPlayer.entryMinute = 0; // Default, expected to be set by caller
             inTacticalPlayer.isSentOff = false;
-
             this.players[index] = inTacticalPlayer;
         }
     }
@@ -202,4 +201,3 @@ export class Team {
         return this.snapshot;
     }
 }
-

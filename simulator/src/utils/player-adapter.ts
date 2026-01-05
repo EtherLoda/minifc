@@ -52,6 +52,7 @@ export class PlayerAdapter {
             currentStamina: entity.stamina || 3,
             form: entity.form || 5,
             experience: entity.experience || 10,
+            exactAge: entity.getExactAge(),
             appearance: entity.appearance // Include player appearance from database
         };
     }
@@ -68,6 +69,7 @@ export class PlayerAdapter {
             currentStamina: 3,
             form: 5,
             experience: 0,
+            exactAge: entity.birthday ? entity.getExactAge() : [0, 0],
             appearance: entity.appearance // Include player appearance from database
         };
     }

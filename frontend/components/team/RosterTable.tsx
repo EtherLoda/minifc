@@ -229,7 +229,7 @@ export function RosterTable({ players }: RosterTableProps) {
                                             </h3>
                                             <div className="flex items-center flex-wrap gap-2 mt-0.5">
                                                 <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 dark:text-emerald-600">
-                                                    AGE {player.age}, DAY {player.ageDays}
+                                                    {player.age},{player.ageDays}
                                                 </span>
                                                 {player.isYouth && (
                                                     <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded font-bold border

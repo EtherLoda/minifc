@@ -12,6 +12,9 @@ export class CreatePlayerReqDto {
     @DateFieldOptional()
     birthday?: Date;
 
+    @StringFieldOptional({ minLength: 2, maxLength: 2 })
+    nationality?: string;
+
     @NumberFieldOptional({ int: true, min: 15, max: 45 })
     age?: number;
 

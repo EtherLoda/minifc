@@ -6,7 +6,7 @@ import { Player } from '../types/player.types';
 
 export interface MatchEvent {
     minute: number;
-    type: 'goal' | 'miss' | 'save' | 'turnover' | 'advance' | 'snapshot' | 'shot' | 'corner' | 'foul' | 'yellow_card' | 'red_card' | 'offside' | 'substitution' | 'injury' | 'penalty_goal' | 'penalty_miss' | 'kickoff' | 'full_time' | 'tactical_change' | 'attack_sequence';
+    type: 'goal' | 'miss' | 'save' | 'turnover' | 'advance' | 'snapshot' | 'shot' | 'corner' | 'foul' | 'yellow_card' | 'red_card' | 'offside' | 'substitution' | 'injury' | 'penalty_goal' | 'penalty_miss' | 'kickoff' | 'half_time' | 'second_half' | 'full_time' | 'tactical_change' | 'attack_sequence';
     description: string;
     teamName?: string;
     teamId?: string;
@@ -26,6 +26,7 @@ export class MatchEngine {
     private defendingTeam: Team;
 
     private currentLane: Lane = 'center';
+    private knownPlayerIds: Set<string> = new Set();
 
     constructor(
         public homeTeam: Team,
@@ -36,6 +37,11 @@ export class MatchEngine {
     ) {
         this.possessionTeam = homeTeam;
         this.defendingTeam = awayTeam;
+
+        // Register starting lineups
+        [...homeTeam.players, ...awayTeam.players].forEach(p => {
+            this.knownPlayerIds.add((p.player as Player).id);
+        });
     }
 
     public simulateMatch(): MatchEvent[] {
@@ -46,11 +52,34 @@ export class MatchEngine {
         this.events.push({
             minute: 0,
             type: 'kickoff',
-            description: 'The match has started!',
+            description: `The match has started! ${this.homeTeam.name} vs ${this.awayTeam.name}`,
             data: {
                 homeTeam: this.homeTeam.name,
                 awayTeam: this.awayTeam.name
             }
+        });
+
+        // Commentaries for both teams' players at the start
+        const getLineupText = (team: Team) => {
+            const players = team.players.map(p => {
+                const player = p.player as Player;
+                return `${player.name} (${p.positionKey})`;
+            });
+            return `📋 ${team.name} Lineup: ${players.join(', ')}`;
+        };
+
+        this.events.push({
+            minute: 0,
+            type: 'kickoff',
+            description: getLineupText(this.homeTeam),
+            teamName: this.homeTeam.name
+        });
+
+        this.events.push({
+            minute: 0,
+            type: 'kickoff',
+            description: getLineupText(this.awayTeam),
+            teamName: this.awayTeam.name
         });
 
         const MOMENTS_COUNT = 20;
@@ -61,53 +90,34 @@ export class MatchEngine {
         this.awayTeam.updateSnapshot();
         this.generateSnapshotEvent(0);
 
-        let lastTime = 0;
+        // Pre-calculate moment times to maintain original pacing (approx 20 moments)
+        const momentTimes = new Set<number>();
+        for (let i = 0; i < MOMENTS_COUNT; i++) {
+            let nextTime = ((i * 90 / MOMENTS_COUNT) + (Math.random() * 90 / MOMENTS_COUNT)) | 0;
+            if (nextTime < 1) nextTime = 1;
+            if (nextTime > 90) nextTime = 90;
+            momentTimes.add(nextTime);
+        }
+
         this.homeScore = 0;
         this.awayScore = 0;
 
-        for (let i = 0; i < MOMENTS_COUNT; i++) {
-            let nextTime = ((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT)) | 0;
-            if (nextTime <= lastTime) nextTime = lastTime + 1;
-            if (nextTime > 90) nextTime = 90;
-            
-            // Ensure first moment doesn't skip too far (max 10 minutes from start)
-            if (i === 0 && nextTime > 10) {
-                nextTime = Math.min(nextTime, 5 + (Math.random() * 5 | 0));
-            }
+        for (let t = 1; t <= 90; t++) {
+            this.time = t;
 
-            this.time = nextTime;
-            const delta = this.time - lastTime;
-
-            const isHalfTime = lastTime <= 45 && this.time > 45;
-
-            // 1. Process Tactical Instructions for every minute in the delta
-            for (let t = lastTime + 1; t <= this.time; t++) {
-                this.processTacticalInstructions(t);
-            }
-
-            // 2. Update stamina and generate snapshots minute-by-minute
-            // This ensures each snapshot captures the correct stamina state at that exact minute
-            for (let currentMinute = lastTime + 1; currentMinute <= this.time; currentMinute++) {
-                // Apply stamina decay for this minute
-                const isHT = (currentMinute === 45); // Halftime recovery happens at minute 45
-                this.homeTeam.updateCondition(1, isHT);
-                this.awayTeam.updateCondition(1, isHT);
-                
-                // Generate snapshot at special moments: every 5 minutes, minute 45, minute 46 (second half start), minute 90
-                const isSpecialMoment = currentMinute % 5 === 0 || currentMinute === 45 || currentMinute === 46 || currentMinute === 90;
-                if (isSpecialMoment && currentMinute <= 90) {
-                    this.homeTeam.updateSnapshot();
-                    this.awayTeam.updateSnapshot();
-                    this.generateSnapshotEvent(currentMinute);
-                }
-            }
-            
-            // Special case: Add second half kickoff event when crossing minute 45
-            if (isHalfTime && this.time > 45) {
+            // Half Time Event at start of second half
+            if (t === 46) {
                 this.events.push({
                     minute: 45,
-                    type: 'kickoff',
-                    description: 'Second half begins!',
+                    type: 'half_time',
+                    description: `The referee blows for half-time! Score: ${this.homeTeam.name} ${this.homeScore}-${this.awayScore} ${this.awayTeam.name}`,
+                    data: { period: 'half_time' }
+                });
+
+                this.events.push({
+                    minute: 46,
+                    type: 'second_half',
+                    description: 'The players return to the pitch. Second half begins!',
                     data: {
                         period: 'second_half',
                         homeScore: this.homeScore,
@@ -116,19 +126,36 @@ export class MatchEngine {
                 });
             }
 
-            const initialEventCount = this.events.length;
-            this.simulateKeyMoment();
+            // 1. Process Tactical Instructions
+            this.processTacticalInstructions(t);
 
-            // Update Score Tracker
-            const newEvents = this.events.slice(initialEventCount);
-            for (const event of newEvents) {
-                if (event.type === 'goal') {
-                    if (event.teamName === this.homeTeam.name) this.homeScore++;
-                    else this.awayScore++;
-                }
+            // 2. Update Condition (Stamina Decay & Recovery)
+            const isHTStart = (t === 46);
+            this.homeTeam.updateCondition(1, isHTStart);
+            this.awayTeam.updateCondition(1, isHTStart);
+
+            // 3. Generate Snapshot (Every 5 mins, 45, 46, 90)
+            const isSnapshotMinute = (t % 5 === 0 || t === 45 || t === 46 || t === 90);
+            if (isSnapshotMinute) {
+                this.homeTeam.updateSnapshot();
+                this.awayTeam.updateSnapshot();
+                this.generateSnapshotEvent(t);
             }
 
-            lastTime = this.time;
+            // 4. Key Moments
+            if (momentTimes.has(t)) {
+                const initialEventCount = this.events.length;
+                this.simulateKeyMoment();
+
+                // Update Score Tracker immediately from new events
+                const newEvents = this.events.slice(initialEventCount);
+                for (const event of newEvents) {
+                    if (event.type === 'goal') {
+                        if (event.teamName === this.homeTeam.name) this.homeScore++;
+                        else this.awayScore++;
+                    }
+                }
+            }
         }
 
         // FULL_TIME Event - Mark exactly at 90 minutes
@@ -150,81 +177,71 @@ export class MatchEngine {
         const MOMENTS_COUNT = 7;
         const MINS_PER_MOMENT = 30 / MOMENTS_COUNT;
 
-        // Extra Time Kickoff Event
-        this.events.push({
-            minute: 90,
-            type: 'kickoff',
-            description: 'Extra time begins!',
-            data: {
-                period: 'extra_time',
-                homeScore: this.homeScore,
-                awayScore: this.awayScore
-            }
-        });
-
-        // Extra Time Break Recovery (Recover 50% of HT)
-        this.homeTeam.updateCondition(0, true); // Simplified recovery for now
-        this.awayTeam.updateCondition(0, true);
-
         // Update Snapshot for start of ET
         this.homeTeam.updateSnapshot();
         this.awayTeam.updateSnapshot();
-        this.generateSnapshotEvent(this.time);
+        this.generateSnapshotEvent(90);
 
-        let lastTime = this.time; // Start from 90 (or wherever ended)
-
+        // Pre-calculate moment times for ET (approx 7 moments)
+        const momentTimes = new Set<number>();
         for (let i = 0; i < MOMENTS_COUNT; i++) {
-            // Time logic: 90 + ...
-            let nextTime = (90 + ((i * MINS_PER_MOMENT) + (Math.random() * MINS_PER_MOMENT))) | 0;
-            if (nextTime <= lastTime) nextTime = lastTime + 1;
-            if (nextTime > 120) nextTime = 120; // Cap at 120
+            let nextTime = (90 + ((i * 30 / MOMENTS_COUNT) + (Math.random() * 30 / MOMENTS_COUNT))) | 0;
+            if (nextTime <= 90) nextTime = 91;
+            if (nextTime > 120) nextTime = 120;
+            momentTimes.add(nextTime);
+        }
 
-            this.time = nextTime;
-            const delta = this.time - lastTime;
-            
-            // Check for start of second half of extra time (105 minutes)
-            const isExtraTimeSecondHalf = lastTime <= 105 && this.time > 105;
-            if (isExtraTimeSecondHalf) {
+        for (let t = 91; t <= 120; t++) {
+            this.time = t;
+
+            // Extra Time Period Kickoffs
+            if (t === 91) {
+                this.events.push({
+                    minute: 90,
+                    type: 'kickoff',
+                    description: 'Extra time begins!',
+                    data: { period: 'extra_time', homeScore: this.homeScore, awayScore: this.awayScore }
+                });
+            }
+            if (t === 106) {
                 this.events.push({
                     minute: 105,
                     type: 'kickoff',
                     description: 'Second half of extra time begins!',
-                    data: {
-                        period: 'extra_time_second_half',
-                        homeScore: this.homeScore,
-                        awayScore: this.awayScore
-                    }
+                    data: { period: 'extra_time_second_half', homeScore: this.homeScore, awayScore: this.awayScore }
                 });
             }
 
-            // Update stamina and generate snapshots minute-by-minute
-            for (let currentMinute = lastTime + 1; currentMinute <= this.time; currentMinute++) {
-                // Apply stamina decay for this minute
-                this.homeTeam.updateCondition(1, false);
-                this.awayTeam.updateCondition(1, false);
-                
-                // Generate snapshot if this minute is a 5-minute mark (95, 100, 105, 110, 115, 120)
-                if (currentMinute % 5 === 0 && currentMinute > 90 && currentMinute <= 120) {
-                    this.homeTeam.updateSnapshot();
-                    this.awayTeam.updateSnapshot();
-                    this.generateSnapshotEvent(currentMinute);
-                }
+            // 1. Process Tactical Instructions
+            this.processTacticalInstructions(t);
+
+            // 2. Update Condition
+            const isPeriodStart = (t === 91 || t === 106);
+            this.homeTeam.updateCondition(1, isPeriodStart);
+            this.awayTeam.updateCondition(1, isPeriodStart);
+
+            // 3. Snapshot (95, 100, 105, 110, 115, 120)
+            const isSnapshotMinute = (t % 5 === 0 || t === 105 || t === 120);
+            if (isSnapshotMinute) {
+                this.homeTeam.updateSnapshot();
+                this.awayTeam.updateSnapshot();
+                this.generateSnapshotEvent(t);
             }
 
-            // Simulate Moment
-            const initialEventCount = this.events.length;
-            this.simulateKeyMoment();
+            // 4. Key Moments
+            if (momentTimes.has(t)) {
+                const initialEventCount = this.events.length;
+                this.simulateKeyMoment();
 
-            // Update Score
-            const newEvents = this.events.slice(initialEventCount);
-            for (const event of newEvents) {
-                if (event.type === 'goal') {
-                    if (event.teamName === this.homeTeam.name) this.homeScore++;
-                    else this.awayScore++;
+                // Update Score
+                const newEvents = this.events.slice(initialEventCount);
+                for (const event of newEvents) {
+                    if (event.type === 'goal') {
+                        if (event.teamName === this.homeTeam.name) this.homeScore++;
+                        else this.awayScore++;
+                    }
                 }
             }
-
-            lastTime = this.time;
         }
 
         // FULL_TIME Event for Extra Time - Mark exactly at 120 minutes
@@ -375,13 +392,20 @@ export class MatchEngine {
                     success = true;
                 }
             } else if (ins.type === 'swap') {
-                if (!team.isPositionOccupied(ins.newPosition) || (ins.playerId && team.isPositionOccupied(ins.newPosition) && this.getPlayerById(team, ins.playerId)?.id === this.getPlayerAtPos(team, ins.newPosition)?.id)) {
-                    const subPlayer = this.substitutePlayers.get(ins.newPlayerId);
-                    if (subPlayer) {
-                        team.substitutePlayer(ins.playerId, subPlayer);
-                        description = `Substitution for ${team.name}: ${subPlayer.player.name} comes in for ${ins.playerId}.`;
-                        success = true;
-                    }
+                const playerOut = team.players.find(p => (p.player as Player).id === ins.playerId);
+                const subPlayer = this.substitutePlayers.get(ins.newPlayerId!);
+
+                if (subPlayer && playerOut) {
+                    const playerOutName = (playerOut.player as Player).name;
+                    const playerInName = (subPlayer.player as Player).name;
+
+                    team.substitutePlayer(ins.playerId, subPlayer);
+                    subPlayer.entryMinute = minute; // Set entry minute
+                    description = `Substitution for ${team.name}: ${playerInName} replaces ${playerOutName}.`;
+
+                    (ins as any).playerInName = playerInName;
+                    (ins as any).playerOutName = playerOutName;
+                    success = true;
                 }
             }
 
@@ -505,7 +529,7 @@ export class MatchEngine {
                 type: 'red_card',
                 teamName: team.name,
                 playerId: p.id,
-                description: `RED CARD! ${p.name} is sent off for a professional foul!`
+                description: `🟥 RED CARD! ${p.name} is sent off after a reckless challenge! ${team.name} are down to 10 men.`
             });
             team.updateSnapshot();
         } else if (roll < 0.4) {
@@ -515,7 +539,7 @@ export class MatchEngine {
                 type: 'yellow_card',
                 teamName: team.name,
                 playerId: p.id,
-                description: `Yellow card for ${p.name}.`
+                description: `🟨 Yellow card for ${p.name}. The referee warns him to be careful.`
             });
         } else {
             // Just a foul
@@ -523,7 +547,7 @@ export class MatchEngine {
                 minute: this.time,
                 type: 'foul',
                 teamName: team.name,
-                description: `Foul by ${p.name}.`
+                description: `⚠️ Foul by ${p.name}. A brief stoppage in play.`
             });
         }
     }
@@ -535,11 +559,11 @@ export class MatchEngine {
         shot: { result: 'goal' | 'save' | 'blocked'; shooter: TacticalPlayer | null; assist: TacticalPlayer | null; shootRating: number; gkRating: number } | null;
     }) {
         const { lane, midfieldBattle, attackPush, shot } = sequence;
-        
+
         // Determine overall result
         let finalResult: 'goal' | 'save' | 'blocked' | 'defense_stopped';
         let eventType: MatchEvent['type'];
-        
+
         if (shot) {
             finalResult = shot.result;
             eventType = shot.result === 'goal' ? 'goal' : (shot.result === 'save' ? 'save' : 'miss');
@@ -555,16 +579,21 @@ export class MatchEngine {
         let description = '';
         const possessor = midfieldBattle.winner === 'home' ? this.homeTeam.name : this.awayTeam.name;
         const defender = midfieldBattle.winner === 'home' ? this.awayTeam.name : this.homeTeam.name;
-        
+
         if (finalResult === 'goal' && shot?.shooter) {
             const shooterName = (shot.shooter.player as Player).name;
             const assistName = shot.assist ? (shot.assist.player as Player).name : null;
-            description = assistName 
-                ? `⚽ GOAL! ${shooterName} scores for ${possessor}! Assisted by ${assistName}`
-                : `⚽ GOAL! ${shooterName} scores for ${possessor}!`;
+            description = assistName
+                ? `⚽ GOAL! ${shooterName} scores for ${possessor}! Brilliant assist by ${assistName}`
+                : `⚽ GOAL! ${shooterName} scores for ${possessor}! What a clinical finish!`;
         } else if (finalResult === 'save' && shot?.shooter) {
             const shooterName = (shot.shooter.player as Player).name;
-            description = `🧤 ${possessor} attacks through ${lane}, but ${shooterName}'s shot is saved by ${defender}'s goalkeeper!`;
+            description = `🧤 SPECTACULAR SAVE! ${possessor} breaks through ${lane}, but ${shooterName}'s powerful shot is denied by ${defender}'s keeper!`;
+        } else if (finalResult === 'blocked' && shot?.shooter) {
+            const shooterName = (shot.shooter.player as Player).name;
+            description = `🛑 Deflected! ${shooterName} tries his luck from the ${lane}, but the defense blocks it for a corner.`;
+        } else if (finalResult === 'defense_stopped') {
+            description = `🛡️ Excellent defensive work! ${defender} intercepts the build-up through the ${lane}.`;
         } else if (finalResult === 'blocked') {
             description = `🛡️ ${possessor} wins possession in ${lane} and pushes forward, but the attack is blocked under pressure from ${defender}!`;
         } else {
@@ -572,7 +601,6 @@ export class MatchEngine {
         }
 
         // Calculate the score AFTER this event (for goal events)
-        // This captures what the score will be once this goal is counted
         const scoreAfterEvent = {
             home: finalResult === 'goal' && midfieldBattle.winner === 'home' ? this.homeScore + 1 : this.homeScore,
             away: finalResult === 'goal' && midfieldBattle.winner === 'away' ? this.awayScore + 1 : this.awayScore
@@ -607,7 +635,6 @@ export class MatchEngine {
             },
             lane: lane,
             finalResult: finalResult,
-            // Add score at the time of this event (after the goal is counted)
             scoreAfterEvent: finalResult === 'goal' ? scoreAfterEvent : undefined
         };
 
@@ -642,27 +669,27 @@ export class MatchEngine {
 
     private selectAssist(team: Team, shooter: TacticalPlayer): TacticalPlayer | null {
         // Get all players except the shooter and GK
-        const candidates = team.players.filter(p => 
-            !p.isSentOff && 
-            p !== shooter && 
+        const candidates = team.players.filter(p =>
+            !p.isSentOff &&
+            p !== shooter &&
             !p.positionKey.includes('GK')
         );
-        
+
         if (candidates.length === 0) return null;
-        
+
         // Prioritize midfielders and wingers for assists
-        const preferredAssisters = candidates.filter(p => 
-            p.positionKey.includes('AM') || 
-            p.positionKey.includes('CM') || 
+        const preferredAssisters = candidates.filter(p =>
+            p.positionKey.includes('AM') ||
+            p.positionKey.includes('CM') ||
             p.positionKey.includes('W') ||
             p.positionKey.includes('M')
         );
-        
+
         if (preferredAssisters.length > 0 && Math.random() < 0.7) {
             // 70% chance to pick from preferred assisters
             return preferredAssisters[(Math.random() * preferredAssisters.length) | 0];
         }
-        
+
         // Otherwise pick any outfield player
         return candidates[(Math.random() * candidates.length) | 0];
     }
@@ -682,54 +709,76 @@ export class MatchEngine {
         const homeSnapshot = this.homeTeam.getSnapshot();
         const awaySnapshot = this.awayTeam.getSnapshot();
 
-        const mapPlayerStates = (team: Team) => {
-            return team.players
-                .filter(p => !p.isSentOff)
-                .map((tacticalPlayer, idx) => {
-                    const player = tacticalPlayer.player as Player;
-                    const currentFit = team.playerFitness[idx];
+        const mapPlayerStates = (team: Team, isFullMatchSnapshot: boolean) => {
+            const teamStates = [];
+            for (let i = 0; i < team.players.length; i++) {
+                const tacticalPlayer = team.players[i];
+                if (tacticalPlayer.isSentOff) continue;
 
-                    // Calculate the same multiplier used in snapshot calculation
-                    const conditionMultiplier = ConditionSystem.calculateMultiplier(
-                        currentFit,
-                        player.currentStamina,
-                        player.form,
-                        player.experience
-                    );
+                const player = tacticalPlayer.player as Player;
+                const fitness = team.playerFitness[i];
+                const multiplier = ConditionSystem.calculateMultiplier(
+                    fitness,
+                    player.currentStamina,
+                    player.form,
+                    player.experience
+                );
 
-                    // Calculate player's contribution in their position (before condition multiplier)
-                    // Get raw contributions across all three lanes and three phases
-                    const leftAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'attack');
-                    const leftDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'defense');
-                    const leftPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'possession');
-                    
-                    const centerAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'attack');
-                    const centerDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'defense');
-                    const centerPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'possession');
-                    
-                    const rightAttack = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'attack');
-                    const rightDefense = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'defense');
-                    const rightPossession = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'possession');
+                const lAtk = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'attack');
+                const lDef = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'defense');
+                const lPos = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'left', 'possession');
 
-                    // Sum all contributions to get total positional performance
-                    const totalContribution = leftAttack + leftDefense + leftPossession +
-                                             centerAttack + centerDefense + centerPossession +
-                                             rightAttack + rightDefense + rightPossession;
+                const cAtk = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'attack');
+                const cDef = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'defense');
+                const cPos = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'center', 'possession');
 
-                    return {
-                        playerId: player.id,
-                        name: player.name,
-                        position: tacticalPlayer.positionKey,
-                        stamina: parseFloat(currentFit.toFixed(2)),
-                        form: player.form,
-                        experience: player.experience || 0,
-                        overall: player.overall || 50,
-                        conditionMultiplier: parseFloat(conditionMultiplier.toFixed(3)),
-                        positionalContribution: parseFloat(totalContribution.toFixed(2)), // Raw contribution from position
-                        isSubstitute: tacticalPlayer.isOriginal === false,
-                        appearance: player.appearance // Include player appearance from database
-                    };
-                });
+                const rAtk = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'attack');
+                const rDef = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'defense');
+                const rPos = AttributeCalculator.calculateContribution(player, tacticalPlayer.positionKey, 'right', 'possession');
+
+                const totalContribution = (lAtk + lDef + lPos + cAtk + cDef + cPos + rAtk + rDef + rPos) * multiplier;
+
+                // A player needs full data if it's the global full snapshot (min 0) or if they just appeared (sub)
+                const isNewPlayer = !this.knownPlayerIds.has(player.id);
+                const needsFullData = isFullMatchSnapshot || isNewPlayer;
+
+                const state: any = {
+                    id: player.id,
+                    p: tacticalPlayer.positionKey,
+                    st: parseFloat(fitness.toFixed(1)),
+                    f: player.form,
+                    cm: parseFloat(multiplier.toFixed(3)),
+                    pc: parseFloat(totalContribution.toFixed(1)),
+                    em: tacticalPlayer.entryMinute || 0
+                };
+
+                if (needsFullData) {
+                    state.n = player.name;
+                    state.o = player.overall || 50;
+                    state.ex = player.experience || 0;
+                    state.age = player.exactAge[0] || 0;
+                    state.ad = player.exactAge[1] || 0;
+                    state.ap = player.appearance;
+
+                    // Mark as known so we don't send full data again
+                    this.knownPlayerIds.add(player.id);
+                }
+                teamStates.push(state);
+            }
+            return teamStates;
+        };
+
+        const formatLanes = (ls: any) => {
+            if (!ls) return null;
+            const res: any = {};
+            for (const [lane, phases] of Object.entries(ls)) {
+                res[lane] = {
+                    atk: parseFloat(((phases as any).attack || 0).toFixed(1)),
+                    def: parseFloat(((phases as any).defense || 0).toFixed(1)),
+                    pos: parseFloat(((phases as any).possession || 0).toFixed(1))
+                };
+            }
+            return res;
         };
 
         this.events.push({
@@ -737,17 +786,17 @@ export class MatchEngine {
             type: 'snapshot',
             description: 'Match Snapshot Update',
             data: {
-                home: {
-                    teamName: this.homeTeam.name,
-                    laneStrengths: homeSnapshot?.laneStrengths,
-                    gkRating: homeSnapshot?.gkRating,
-                    players: mapPlayerStates(this.homeTeam)
+                h: {
+                    n: time === 0 ? this.homeTeam.name : undefined,
+                    ls: formatLanes(homeSnapshot?.laneStrengths),
+                    gk: parseFloat((homeSnapshot?.gkRating || 0).toFixed(1)),
+                    ps: mapPlayerStates(this.homeTeam, time === 0)
                 },
-                away: {
-                    teamName: this.awayTeam.name,
-                    laneStrengths: awaySnapshot?.laneStrengths,
-                    gkRating: awaySnapshot?.gkRating,
-                    players: mapPlayerStates(this.awayTeam)
+                a: {
+                    n: time === 0 ? this.awayTeam.name : undefined,
+                    ls: formatLanes(awaySnapshot?.laneStrengths),
+                    gk: parseFloat((awaySnapshot?.gkRating || 0).toFixed(1)),
+                    ps: mapPlayerStates(this.awayTeam, time === 0)
                 }
             }
         });

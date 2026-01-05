@@ -20,7 +20,7 @@ export interface TacticalInstruction {
 export interface TacticalPlayer {
     player: any; // Using any for now to avoid circular dependency or import Player type
     positionKey: string;
-    isOriginal?: boolean; // To track if they were in the starting 11
+    entryMinute?: number; // Minute they entered the pitch (0 if starter)
     isSentOff?: boolean;
 }
 

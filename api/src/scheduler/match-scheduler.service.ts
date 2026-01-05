@@ -174,7 +174,7 @@ export class MatchSchedulerService {
 
                 this.logger.log(
                     `⚽ Match started: ${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'} ` +
-                        `(ID: ${match.id}, Scheduled: ${match.scheduledAt.toISOString()})`,
+                    `(ID: ${match.id}, Scheduled: ${match.scheduledAt.toISOString()})`,
                 );
             } catch (error) {
                 this.logger.error(
@@ -224,14 +224,16 @@ export class MatchSchedulerService {
                     await this.matchRepository.save(match);
 
                     // Queue post-match processing (player stats, league standings)
-                    await this.completionQueue.add('complete-match', {
-                        matchId: match.id,
-                    });
+                    await this.completionQueue.add(
+                        'complete-match',
+                        { matchId: match.id },
+                        { jobId: `complete-${match.id}` }
+                    );
 
                     this.logger.log(
                         `🏁 Match completed: ${match.homeTeam?.name || 'Home'} ${match.homeScore || 0} - ` +
-                            `${match.awayScore || 0} ${match.awayTeam?.name || 'Away'} ` +
-                            `(ID: ${match.id})`,
+                        `${match.awayScore || 0} ${match.awayTeam?.name || 'Away'} ` +
+                        `(ID: ${match.id})`,
                     );
                 }
             } catch (error) {

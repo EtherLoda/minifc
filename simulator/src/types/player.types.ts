@@ -28,6 +28,7 @@ export interface Player {
     currentStamina: number;
     form: number;
     experience: number;
+    exactAge: [number, number];
     overall?: number; // Overall rating for performance calculation
     appearance?: any; // Player appearance data from database
     // ... other fields

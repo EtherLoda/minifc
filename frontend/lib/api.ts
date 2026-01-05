@@ -116,7 +116,7 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
             // Try to extract error message from response body
             let errorData: any = {};
             let errorMsg = `API Error: ${res.status} ${res.statusText}`;
-            
+
             try {
                 errorData = await res.json();
                 const message = errorData.message || errorData.error;
@@ -126,7 +126,7 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
             } catch (parseError) {
                 // Body is empty or not JSON - use default message
             }
-            
+
             // Only log errors for non-404s or in development mode
             if (res.status !== 404 || process.env.NODE_ENV === 'development') {
                 console.error(`[API] Error ${res.status}: ${res.statusText}`);
@@ -134,7 +134,7 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
                     console.error('[API] Error Body:', errorData);
                 }
             }
-            
+
             // Create error with both message and status
             const error: any = new Error(errorMsg);
             error.status = res.status;
@@ -213,10 +213,17 @@ export interface PlayerState {
     stamina: number;
     form: number;
     experience: number;
+    age: number;
+    ageDays: number;
+    contribution: number;
+    multiplier: number;
+    entryMinute: number; // Minute they entered the pitch (0 if starter)
+    sub?: boolean; // Legacy/Optional
+    isOriginal?: boolean; // Legacy/Optional
+    teamName?: string;
     overall: number; // Overall rating from snapshot
     conditionMultiplier: number;
     positionalContribution: number; // Raw contribution from position (before condition multiplier)
-    isSubstitute: boolean;
     appearance?: any; // Player appearance data from database
 }
 
