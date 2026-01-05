@@ -14,6 +14,9 @@ export class TeamResDto {
     name: string;
 
     @Expose()
+    nationality?: string;
+
+    @Expose()
     logoUrl: string;
 
     @Expose()

@@ -30,8 +30,9 @@ export class StatsService {
             throw new NotFoundException(`Match with ID ${matchId} not found`);
         }
 
-        if (match.status !== MatchStatus.COMPLETED) {
-            throw new NotFoundException(`Stats not available for incomplete match`);
+        // Allow stats for both in-progress and completed matches
+        if (match.status !== MatchStatus.COMPLETED && match.status !== MatchStatus.IN_PROGRESS) {
+            throw new NotFoundException(`Stats not available for match with status: ${match.status}`);
         }
 
         const stats = await this.matchStatsRepository.find({

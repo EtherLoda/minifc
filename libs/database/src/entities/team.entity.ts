@@ -32,6 +32,9 @@ export class TeamEntity extends AbstractEntity {
     @Column({ type: 'varchar', nullable: false })
     name: string;
 
+    @Column({ type: 'varchar', length: 2, nullable: true, comment: 'ISO 3166-1 alpha-2 country code (e.g., CN, US, GB, DE)' })
+    nationality?: string;
+
     @Column({ name: 'logo_url', type: 'varchar', default: '' })
     logoUrl: string;
 

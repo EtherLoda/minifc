@@ -9,6 +9,7 @@ export interface League {
 export interface Team {
     id: string;
     name: string;
+    nationality?: string;
     logoUrl?: string;
 }
 
@@ -16,6 +17,7 @@ export interface Player {
     id: string;
     teamId: string;
     name: string;
+    nationality?: string;
     overall: number;
     isGoalkeeper: boolean;
     age: number;
@@ -165,6 +167,9 @@ export interface MatchEvent {
     teamId?: string;
     playerId?: string;
     data?: any;
+    description?: string; // Event description for display
+    eventType?: string; // Alternative event type field
+    eventData?: any; // Alternative data field
 }
 
 export interface MatchTeamStats {

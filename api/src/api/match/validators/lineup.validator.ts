@@ -16,6 +16,7 @@ export class LineupValidator {
     static validate(
         lineup: Record<string, string>,
         teamPlayers: string[],
+        playerRoles?: Map<string, boolean>, // Map of playerId -> isGoalkeeper
     ): { valid: boolean; errors: string[] } {
         const errors: string[] = [];
         const slots = Object.keys(lineup);
@@ -29,6 +30,27 @@ export class LineupValidator {
         // Must have GK
         if (!lineup.GK) {
             errors.push('Lineup must include a goalkeeper (GK slot)');
+        }
+
+        // Validate that GK slot has a goalkeeper player
+        if (lineup.GK && playerRoles) {
+            const isGK = playerRoles.get(lineup.GK);
+            if (isGK === false) {
+                errors.push('Only a goalkeeper can be assigned to the GK position');
+            }
+        }
+
+        // Validate that goalkeepers are only in GK position
+        if (playerRoles) {
+            for (const [slot, playerId] of Object.entries(lineup)) {
+                if (slot !== 'GK' && playerId) {
+                    const isGK = playerRoles.get(playerId);
+                    if (isGK === true) {
+                        errors.push('Goalkeepers can only be assigned to the GK position');
+                        break; // Only report once
+                    }
+                }
+            }
         }
 
         // All slots must be valid

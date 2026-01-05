@@ -2,7 +2,7 @@
 
 import { useMatchPolling } from '@/hooks/useMatchPolling';
 import { useMatchSimulation } from '@/hooks/useMatchSimulation';
-import { MatchEvents } from '@/components/match/MatchEvents';
+import { EventTimeline } from '@/components/match/EventTimeline';
 import { MatchStats } from '@/components/match/MatchStats';
 import { TeamLineupView } from '@/components/match/TeamLineupView';
 import { MatchPitchView } from '@/components/match/MatchPitchView';
@@ -162,34 +162,6 @@ export function LiveMatchViewer({
 
             {/* Match Content Grid */}
             <div className="space-y-6">
-                {/* Debug info - remove after testing */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg text-xs font-mono">
-                        <div>Total events: {eventsData.events.length}</div>
-                        <div>Snapshot events found: {eventsData.events.filter(e => {
-                            const typeName = typeof e.typeName === 'string' ? e.typeName.toUpperCase() : '';
-                            const type = typeof e.type === 'string' ? e.type.toUpperCase() : '';
-                            return typeName === 'SNAPSHOT' || type === 'SNAPSHOT';
-                        }).length}</div>
-                        <div>Selected minute: {selectedMinute}</div>
-                        <div>homeSnapshot: {homeSnapshot ? '✓ has data' : '✗ null'}</div>
-                        <div>awaySnapshot: {awaySnapshot ? '✓ has data' : '✗ null'}</div>
-                        <div>homePlayers: {homeSnapshot?.players?.length || 0}</div>
-                        <div>awayPlayers: {awaySnapshot?.players?.length || 0}</div>
-                        {homeSnapshot?.players?.[0] && (
-                            <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
-                                <div className="font-bold">Sample Player Data (first home player):</div>
-                                <div>Name: {homeSnapshot.players[0].name}</div>
-                                <div>Position: {homeSnapshot.players[0].position}</div>
-                                <div>Overall: {homeSnapshot.players[0].overall ?? 'MISSING'}</div>
-                                <div>PositionalContrib: {homeSnapshot.players[0].positionalContribution ?? 'MISSING'}</div>
-                                <div>ConditionMult: {homeSnapshot.players[0].conditionMultiplier ?? 'MISSING'}</div>
-                                <div>Stamina: {homeSnapshot.players[0].stamina}</div>
-                                <div className="font-bold mt-1">Performance = {homeSnapshot.players[0].positionalContribution ?? 0} × {homeSnapshot.players[0].conditionMultiplier ?? 1} = {Math.round((homeSnapshot.players[0].positionalContribution ?? 0) * (homeSnapshot.players[0].conditionMultiplier ?? 1))}</div>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Match Timeline - Positioned above pitch for better visibility */}
                 {(isLive || isCompleted) && eventsData.events.length > 0 && (
@@ -201,37 +173,31 @@ export function LiveMatchViewer({
                     />
                 )}
 
-                {/* Tactical Analysis - Show 3-lane battle metrics */}
+                {/* Tactical Analysis with integrated Pitch View - Toggle between tactical grid and player formation */}
                 {(homeSnapshot && awaySnapshot) && (
-                    <div className="mb-6">
+                    <div>
                         <TacticalAnalysis
                             homeSnapshot={homeSnapshot}
                             awaySnapshot={awaySnapshot}
                             homeTeamName={homeTeamName}
                             awayTeamName={awayTeamName}
-                        />
-                    </div>
-                )}
-
-                {/* Match Pitch View - Show formations with player stats */}
-                {(homeSnapshot || awaySnapshot) && (
-                    <div>
-                        <MatchPitchView
-                            homeTeamName={homeSnapshot?.teamName || homeTeamName}
-                            awayTeamName={awaySnapshot?.teamName || awayTeamName}
-                            homePlayers={homeSnapshot?.players || []}
-                            awayPlayers={awaySnapshot?.players || []}
                             initialStamina={initialStamina}
                         />
                     </div>
                 )}
 
-                {/* Events Timeline - Centered */}
+                {/* Events Timeline - Centered with Multiple Templates */}
                 <div className="max-w-4xl mx-auto">
-                    <MatchEvents
-                        events={eventsData.events}
-                        homeTeamId={homeTeamId}
-                        awayTeamId={awayTeamId}
+                    <EventTimeline
+                        events={eventsData.events.filter(e => {
+                            // Filter out snapshot events from timeline
+                            const typeName = typeof e.typeName === 'string' ? e.typeName.toUpperCase() : '';
+                            const type = typeof e.type === 'string' ? e.type.toUpperCase() : '';
+                            return typeName !== 'SNAPSHOT' && type !== 'SNAPSHOT';
+                        })}
+                        isLive={isLive}
+                        currentMinute={liveMinute}
+                        currentScore={eventsData.currentScore}
                     />
                 </div>
 

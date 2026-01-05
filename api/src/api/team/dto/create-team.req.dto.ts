@@ -7,6 +7,9 @@ export class CreateTeamReqDto {
     @StringField()
     name: string;
 
+    @StringFieldOptional({ minLength: 2, maxLength: 2 })
+    nationality?: string;
+
     @UUIDField({ required: false })
     leagueId?: string;
 

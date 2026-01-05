@@ -90,6 +90,9 @@ export class PlayerEntity extends AbstractEntity {
     @Column()
     name!: string;
 
+    @Column({ type: 'varchar', length: 2, nullable: true, comment: 'ISO 3166-1 alpha-2 country code (e.g., CN, US, GB, DE)' })
+    nationality?: string;
+
     @Column({ type: 'date', nullable: true })
     birthday?: Date;
 

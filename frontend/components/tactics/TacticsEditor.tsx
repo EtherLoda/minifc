@@ -139,6 +139,35 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
     const handleDrop = (position: string) => {
         if (!draggedPlayer) return;
 
+        const player = players.find(p => p.id === draggedPlayer);
+        if (!player) return;
+
+        // Validate: Only goalkeepers can be placed in GK position
+        if (position === 'GK') {
+            if (!player.isGoalkeeper) {
+                showNotification({
+                    type: 'warning',
+                    title: 'Invalid Position',
+                    message: 'Only goalkeepers can be placed in the GK position.',
+                });
+                setDraggedPlayer(null);
+                setDraggedFrom(null);
+                return;
+            }
+        }
+
+        // Validate: Goalkeepers can only be placed in GK position
+        if (player.isGoalkeeper && position !== 'GK') {
+            showNotification({
+                type: 'warning',
+                title: 'Invalid Position',
+                message: 'Goalkeepers can only be placed in the GK position.',
+            });
+            setDraggedPlayer(null);
+            setDraggedFrom(null);
+            return;
+        }
+
         const newLineup = { ...lineup };
 
         // Remove player from previous position if dragged from pitch
@@ -164,6 +193,22 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
 
         if (!lineup.GK) {
             return { valid: false, error: 'Goalkeeper is required' };
+        }
+
+        // Validate that GK position has a goalkeeper
+        const gkPlayer = players.find(p => p.id === lineup.GK);
+        if (gkPlayer && !gkPlayer.isGoalkeeper) {
+            return { valid: false, error: 'Only a goalkeeper can play in GK position' };
+        }
+
+        // Validate that goalkeepers are only in GK position
+        for (const [position, playerId] of Object.entries(lineup)) {
+            if (position !== 'GK' && playerId) {
+                const player = players.find(p => p.id === playerId);
+                if (player?.isGoalkeeper) {
+                    return { valid: false, error: 'Goalkeepers can only play in GK position' };
+                }
+            }
         }
 
         if (playerCount < 9) {

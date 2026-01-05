@@ -422,11 +422,17 @@ export class MatchService {
         // Validate lineup
         const teamPlayers = await this.playerRepository.find({
             where: { teamId },
-            select: ['id'],
+            select: ['id', 'isGoalkeeper'],
         });
         const teamPlayerIds = teamPlayers.map((p) => p.id);
+        
+        // Create a map of playerId -> isGoalkeeper for validation
+        const playerRoles = new Map<string, boolean>();
+        teamPlayers.forEach(p => {
+            playerRoles.set(p.id, p.isGoalkeeper);
+        });
 
-        const validation = LineupValidator.validate(lineup, teamPlayerIds);
+        const validation = LineupValidator.validate(lineup, teamPlayerIds, playerRoles);
         if (!validation.valid) {
             throw new BadRequestException(validation.errors.join(', '));
         }

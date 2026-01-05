@@ -77,6 +77,7 @@ export function PitchLayout({ lineup, players, onDrop, onRemove, onDragStart, on
 
     const handleDrop = (e: React.DragEvent, position: string) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent event bubbling to avoid duplicate calls
         onDrop(position);
         setDragOverPitch(false);
         if (onDragEnd) {

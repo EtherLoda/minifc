@@ -9,6 +9,7 @@ import { ListPlayerReqDto } from './dto/list-player.req.dto';
 import { PlayerResDto } from './dto/player.res.dto';
 import { UpdatePlayerReqDto } from './dto/update-player.req.dto';
 import { PlayerEntity, PotentialTier, TrainingSlot, PlayerSkills } from '@goalxi/database';
+import { getRandomNameByNationality, getRandomNationality } from '../../constants/name-database';
 
 @Injectable()
 export class PlayerService {
@@ -93,29 +94,19 @@ export class PlayerService {
         await player.softRemove();
     }
 
-    async generateRandom(count: number = 1, teamId?: string): Promise<PlayerResDto[]> {
+    async generateRandom(count: number = 1, teamId?: string, nationality?: string): Promise<PlayerResDto[]> {
         const players: PlayerResDto[] = [];
 
-        const firstNames = [
-            'Marcus', 'Leo', 'Diego', 'Carlos', 'Andre', 'Paulo', 'Roberto',
-            'Fernando', 'Luis', 'Miguel', 'Rafael', 'Gabriel', 'Juan', 'Pedro',
-            'Antonio', 'Manuel', 'Jose', 'David', 'Daniel', 'Alex',
-        ];
-
-        const lastNames = [
-            'Silva', 'Santos', 'Rodriguez', 'Martinez', 'Garcia', 'Lopez',
-            'Gonzalez', 'Perez', 'Sanchez', 'Ramirez', 'Torres', 'Flores',
-            'Rivera', 'Gomez', 'Diaz', 'Cruz', 'Morales', 'Reyes', 'Ortiz', 'Gutierrez',
-        ];
-
         for (let i = 0; i < count; i++) {
-            const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-            const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+            // Use provided nationality or generate random one
+            const playerNationality = nationality || getRandomNationality();
+            const { firstName, lastName } = getRandomNameByNationality(playerNationality);
             const isGoalkeeper = Math.random() < 0.1; // 10% chance to be a GK
 
             const [currentSkills, potentialSkills] = this.generateRandomSkills(isGoalkeeper);
             const player = new PlayerEntity({
                 name: `${firstName} ${lastName}`,
+                nationality: playerNationality,
                 teamId: teamId || null,
                 isGoalkeeper,
                 appearance: this.generateRandomAppearance(),
@@ -236,6 +227,7 @@ export class PlayerService {
             id: player.id,
             teamId: player.teamId,
             name: player.name,
+            nationality: player.nationality,
             birthday: player.birthday,
             isYouth: player.isYouth,
             age: years,

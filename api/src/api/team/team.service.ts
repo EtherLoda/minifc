@@ -53,7 +53,7 @@ export class TeamService {
         // Auto-generate players if team has none (e.g. for existing teams before this logic)
         const playersCount = await PlayerEntity.countBy({ teamId: team.id });
         if (playersCount === 0) {
-            await this.playerService.generateRandom(18, team.id);
+            await this.playerService.generateRandom(18, team.id, team.nationality);
         }
 
         return this.mapToResDto(team);
@@ -76,6 +76,7 @@ export class TeamService {
         const team = new TeamEntity({
             userId: reqDto.userId,
             name: reqDto.name,
+            nationality: reqDto.nationality,
             leagueId: reqDto.leagueId || null,
             logoUrl: reqDto.logoUrl || '',
             jerseyColorPrimary: reqDto.jerseyColorPrimary || '#FF0000',
@@ -85,7 +86,8 @@ export class TeamService {
         await team.save();
 
         // Initialize team with a starting squad of 18 players
-        await this.playerService.generateRandom(18, team.id);
+        // Use team's nationality for player generation to create cohesive squads
+        await this.playerService.generateRandom(18, team.id, team.nationality);
 
         return this.mapToResDto(team);
     }
@@ -95,6 +97,7 @@ export class TeamService {
         const team = await TeamEntity.findOneByOrFail({ id });
 
         if (reqDto.name) team.name = reqDto.name;
+        if (reqDto.nationality !== undefined) team.nationality = reqDto.nationality;
         if (reqDto.leagueId !== undefined) team.leagueId = reqDto.leagueId || null;
         if (reqDto.logoUrl !== undefined) team.logoUrl = reqDto.logoUrl;
         if (reqDto.jerseyColorPrimary) team.jerseyColorPrimary = reqDto.jerseyColorPrimary;
@@ -117,6 +120,7 @@ export class TeamService {
             userId: team.userId,
             leagueId: team.leagueId,
             name: team.name,
+            nationality: team.nationality,
             logoUrl: team.logoUrl,
             jerseyColorPrimary: team.jerseyColorPrimary,
             jerseyColorSecondary: team.jerseyColorSecondary,

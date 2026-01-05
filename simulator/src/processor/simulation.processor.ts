@@ -305,7 +305,13 @@ export class SimulationProcessor extends WorkerHost {
                 typeName: e.type,
                 teamId: e.teamName === match.homeTeam!.name ? match.homeTeamId : (e.teamName === match.awayTeam!.name ? match.awayTeamId : null),
                 playerId: e.playerId || null,
-                data: e.data || null,
+                relatedPlayerId: e.relatedPlayerId || null, // For assists
+                data: {
+                    ...e.data,
+                    description: e.description, // Add description to data for backward compatibility
+                    playerName: e.playerId ? allPlayers.find(p => p.id === e.playerId)?.name : undefined, // Add player name from DB
+                    assistName: e.relatedPlayerId ? allPlayers.find(p => p.id === e.relatedPlayerId)?.name : undefined, // Add assist player name
+                },
                 eventScheduledTime: e.eventScheduledTime, // Real-world time when event should be revealed
                 isRevealed: false, // Will be revealed when current time reaches eventScheduledTime
             }));

@@ -571,6 +571,13 @@ export class MatchEngine {
             description = `⚔️ ${possessor} wins possession in ${lane}, but ${defender} defends successfully and stops the attack!`;
         }
 
+        // Calculate the score AFTER this event (for goal events)
+        // This captures what the score will be once this goal is counted
+        const scoreAfterEvent = {
+            home: finalResult === 'goal' && midfieldBattle.winner === 'home' ? this.homeScore + 1 : this.homeScore,
+            away: finalResult === 'goal' && midfieldBattle.winner === 'away' ? this.awayScore + 1 : this.awayScore
+        };
+
         // Build event data
         const eventData: any = {
             sequence: {
@@ -599,7 +606,9 @@ export class MatchEngine {
                 } : null
             },
             lane: lane,
-            finalResult: finalResult
+            finalResult: finalResult,
+            // Add score at the time of this event (after the goal is counted)
+            scoreAfterEvent: finalResult === 'goal' ? scoreAfterEvent : undefined
         };
 
         // Create the event

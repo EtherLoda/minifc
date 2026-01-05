@@ -4,6 +4,9 @@ export class UpdateTeamReqDto {
     @StringFieldOptional()
     name?: string;
 
+    @StringFieldOptional({ minLength: 2, maxLength: 2 })
+    nationality?: string;
+
     @UUIDFieldOptional()
     leagueId?: string;
 

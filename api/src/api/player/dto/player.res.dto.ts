@@ -24,6 +24,10 @@ export class PlayerResDto {
     @Expose()
     name: string;
 
+    @StringFieldOptional({ minLength: 2, maxLength: 2 })
+    @Expose()
+    nationality?: string;
+
     @DateField({ nullable: true })
     @Expose()
     birthday?: Date;

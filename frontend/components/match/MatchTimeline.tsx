@@ -23,13 +23,15 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
         }
     }, [currentMinute, isDragging]);
 
-    // Extract important events (goals, substitutions, snapshots) for timeline markers
+    // Extract important events (goals, substitutions) for timeline markers
+    // Filter out snapshot events - they are only used internally for player state
     const timelineEvents = events.filter(event => {
         const type = typeof event.type === 'string' ? event.type.toUpperCase() : '';
         const typeName = typeof event.typeName === 'string' ? event.typeName.toUpperCase() : '';
-        return type === 'GOAL' || typeName === 'GOAL' || 
-               type === 'SUBSTITUTION' || typeName === 'SUBSTITUTION' ||
-               type === 'SNAPSHOT' || typeName === 'SNAPSHOT';
+        // Only show goals and substitutions on timeline
+        return (type === 'GOAL' || typeName === 'GOAL' || 
+                type === 'SUBSTITUTION' || typeName === 'SUBSTITUTION') &&
+               (type !== 'SNAPSHOT' && typeName !== 'SNAPSHOT');
     });
 
     // Handle timeline click/drag
@@ -60,9 +62,10 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
         setIsDragging(false);
     };
 
-    // Handle event marker click
+    // Handle event marker click - don't stop propagation, let timeline handle it naturally
     const handleEventClick = (event: MatchEvent, e: React.MouseEvent) => {
-        e.stopPropagation();
+        // Don't stop propagation - allow timeline to handle the click
+        // But set the minute to the exact event time for precision
         setSelectedMinute(event.minute);
         onTimeSelect(event.minute);
     };
@@ -78,9 +81,6 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
         if (type === 'SUBSTITUTION' || typeName === 'SUBSTITUTION') {
             return <Users className="w-3 h-3" />;
         }
-        if (type === 'SNAPSHOT' || typeName === 'SNAPSHOT') {
-            return <Clock className="w-2.5 h-2.5" />;
-        }
         return <Clock className="w-3 h-3" />;
     };
 
@@ -94,9 +94,6 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
         }
         if (type === 'SUBSTITUTION' || typeName === 'SUBSTITUTION') {
             return 'bg-blue-500 border-blue-400 hover:bg-blue-600';
-        }
-        if (type === 'SNAPSHOT' || typeName === 'SNAPSHOT') {
-            return 'bg-purple-500 border-purple-400 hover:bg-purple-600';
         }
         return 'bg-slate-500 border-slate-400 hover:bg-slate-600';
     };
@@ -126,10 +123,11 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
+                    onClick={handleTimelineInteraction}
                 >
-                    {/* Progress Bar */}
+                    {/* Progress Bar - pointer-events-none allows clicks to pass through */}
                     <div
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-150"
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-150 pointer-events-none"
                         style={{ width: `${(selectedMinute / totalMinutes) * 100}%` }}
                     />
 
@@ -183,12 +181,6 @@ export function MatchTimeline({ events, totalMinutes, currentMinute, onTimeSelec
                         <Users className="w-2.5 h-2.5 text-white" />
                     </div>
                     <span className="text-slate-700 dark:text-slate-300">Substitution</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
-                        <Clock className="w-2 h-2 text-white" />
-                    </div>
-                    <span className="text-slate-700 dark:text-slate-300">Snapshot</span>
                 </div>
             </div>
         </div>
