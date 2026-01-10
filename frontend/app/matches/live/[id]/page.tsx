@@ -74,7 +74,7 @@ function MatchData({ id }: { id: string }) {
         <div className="min-h-screen font-mono">
             {/* Background is handled globally by layout.tsx */}
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
+            <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
                 {/* Back Button */}
                 <div className="mb-6">
                     <Link
@@ -122,7 +122,7 @@ function MatchLoadingSkeleton() {
                 <div className="absolute top-[-10%] left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] animate-pulse"></div>
             </div>
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
+            <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
                 <div className="mb-6">
                     <Skeleton className="h-4 w-32" />
                 </div>

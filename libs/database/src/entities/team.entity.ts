@@ -7,6 +7,20 @@ import type { MatchEntity } from './match.entity';
 import type { SeasonResultEntity } from './season-result.entity';
 import { Column, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
+/**
+ * Bench configuration for team substitutions
+ * Each position group has substitute players mapped by player ID
+ * FB = Fullback (covers both LB/RB), W = Winger (covers both LW/RW)
+ */
+export interface BenchConfig {
+    goalkeeper: string | null;              // GK 替补
+    centerBack: string | null;              // CD 替补
+    fullback: string | null;                // FB 替补 (合并 LB/RB)
+    winger: string | null;                  // W 替补 (合并 LW/RW)
+    centralMidfield: string | null;         // AM/CM/DM 中场替补
+    forward: string | null;                 // FWD/CF 前锋替补
+}
+
 @Entity('team')
 export class TeamEntity extends AbstractEntity {
     @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_team_id' })
@@ -43,6 +57,9 @@ export class TeamEntity extends AbstractEntity {
 
     @Column({ name: 'jersey_color_secondary', type: 'varchar', default: '#FFFFFF' })
     jerseyColorSecondary: string;
+
+    @Column({ name: 'bench_config', type: 'jsonb', nullable: true, comment: 'Bench configuration for substitutions' })
+    benchConfig: BenchConfig | null;
 
     @OneToMany('MatchEntity', (match: MatchEntity) => match.homeTeam)
     homeMatches: MatchEntity[];

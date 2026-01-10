@@ -3,6 +3,30 @@ import { Lane, TacticalPlayer, TacticalInstruction, ScoreStatus } from './types/
 import { AttributeCalculator } from './utils/attribute-calculator';
 import { ConditionSystem } from './systems/condition.system';
 import { Player } from '../types/player.types';
+import { BenchConfig } from '@goalxi/database';
+
+/**
+ * Map position keys to bench config keys
+ * FB = Fullback (covers LB/RB/WBL/WBR)
+ * W = Winger (covers LW/RW/LM/RM)
+ * CM = Central Midfield (covers AM/CM/DM all left/center/right variants)
+ */
+const POSITION_TO_BENCH_KEY: Record<string, keyof BenchConfig> = {
+    // Goalkeeper
+    'GK': 'goalkeeper',
+    // Center Back (3 positions)
+    'CDL': 'centerBack', 'CD': 'centerBack', 'CDR': 'centerBack',
+    // Fullback (4 positions: LB, RB, WBL, WBR)
+    'LB': 'fullback', 'RB': 'fullback', 'WBL': 'fullback', 'WBR': 'fullback',
+    // Winger (4 positions: LW, RW, LM, RM)
+    'LW': 'winger', 'RW': 'winger', 'LM': 'winger', 'RM': 'winger',
+    // Central Midfield (9 positions: AM/CM/DM x left/center/right)
+    'AML': 'centralMidfield', 'AM': 'centralMidfield', 'AMR': 'centralMidfield',
+    'CML': 'centralMidfield', 'CM': 'centralMidfield', 'CMR': 'centralMidfield',
+    'DML': 'centralMidfield', 'DM': 'centralMidfield', 'DMR': 'centralMidfield',
+    // Forward (3 positions)
+    'CFL': 'forward', 'CF': 'forward', 'CFR': 'forward'
+};
 
 export interface MatchEvent {
     minute: number;
@@ -33,7 +57,9 @@ export class MatchEngine {
         public awayTeam: Team,
         private homeInstructions: TacticalInstruction[] = [],
         private awayInstructions: TacticalInstruction[] = [],
-        private substitutePlayers: Map<string, TacticalPlayer> = new Map() // All potential subs mapped by ID
+        private substitutePlayers: Map<string, TacticalPlayer> = new Map(), // All potential subs mapped by ID
+        private homeBenchConfig: BenchConfig | null = null,
+        private awayBenchConfig: BenchConfig | null = null
     ) {
         this.possessionTeam = homeTeam;
         this.defendingTeam = awayTeam;
@@ -42,6 +68,26 @@ export class MatchEngine {
         [...homeTeam.players, ...awayTeam.players].forEach(p => {
             this.knownPlayerIds.add((p.player as Player).id);
         });
+    }
+
+    /**
+     * Get substitute player for a specific position
+     */
+    private getSubstituteForPosition(team: Team, benchConfig: BenchConfig | null, positionKey: string): TacticalPlayer | null {
+        if (!benchConfig) return null;
+
+        const benchKey = POSITION_TO_BENCH_KEY[positionKey];
+        if (!benchKey) return null;
+
+        const subPlayerId = benchConfig[benchKey];
+        if (!subPlayerId) return null;
+
+        // Look up in substitutePlayers map first
+        const subPlayer = this.substitutePlayers.get(subPlayerId);
+        if (subPlayer) return subPlayer;
+
+        // Fallback: search in team players (shouldn't happen normally)
+        return team.players.find(p => (p.player as Player).id === subPlayerId) || null;
     }
 
     public simulateMatch(): MatchEvent[] {
@@ -360,10 +406,13 @@ export class MatchEngine {
 
     private recordPenaltyEvent(kicker: TacticalPlayer, goal: boolean, hScore: number, aScore: number) {
         const p = kicker.player as Player;
+        const kickerTeam = this.homeTeam.players.some(tp => (tp.player as Player).id === p.id)
+            ? this.homeTeam.name
+            : this.awayTeam.name;
         this.events.push({
             minute: 120,
             type: goal ? 'penalty_goal' : 'penalty_miss',
-            teamName: this.homeTeam.players.includes(kicker) ? this.homeTeam.name : this.awayTeam.name,
+            teamName: kickerTeam,
             playerId: p.id,
             description: `Penalty ${goal ? 'GOAL' : 'MISS'} by ${p.name}! (Current: ${hScore}-${aScore})`,
             data: { homeScore: hScore, awayScore: aScore }
@@ -537,8 +586,9 @@ export class MatchEngine {
         const roll = Math.random();
 
         if (roll < 0.1) {
-            // Red Card
+            // Direct Red Card
             team.sendOffPlayer(p.id);
+            player.isSentOff = true;
             this.events.push({
                 minute: this.time,
                 type: 'red_card',
@@ -548,14 +598,31 @@ export class MatchEngine {
             });
             team.updateSnapshot();
         } else if (roll < 0.4) {
-            // Yellow Card
-            this.events.push({
-                minute: this.time,
-                type: 'yellow_card',
-                teamName: team.name,
-                playerId: p.id,
-                description: `🟨 Yellow card for ${p.name}. The referee warns him to be careful.`
-            });
+            // Yellow Card - check for second yellow
+            const currentYellows = player.yellowCards || 0;
+            player.yellowCards = currentYellows + 1;
+
+            if (currentYellows >= 1) {
+                // Second yellow = red card
+                team.sendOffPlayer(p.id);
+                this.events.push({
+                    minute: this.time,
+                    type: 'red_card',
+                    teamName: team.name,
+                    playerId: p.id,
+                    description: `🟥 SECOND YELLOW! ${p.name} receives a second yellow and is sent off! ${team.name} down to 10 men.`
+                });
+                team.updateSnapshot();
+            } else {
+                // First yellow
+                this.events.push({
+                    minute: this.time,
+                    type: 'yellow_card',
+                    teamName: team.name,
+                    playerId: p.id,
+                    description: `🟨 Yellow card for ${p.name}. The referee warns him to be careful.`
+                });
+            }
         } else {
             // Just a foul
             this.events.push({

@@ -81,19 +81,21 @@ function generatePlayerAttributes(position: string, potentialAbility: number, ag
     const outfieldKeys = {
         physical: ['pace', 'strength'],
         technical: ['finishing', 'passing', 'dribbling', 'defending'],
-        mental: ['vision', 'positioning', 'awareness', 'composure', 'aggression']
+        mental: ['positioning', 'composure'],
+        setPieces: ['freeKicks', 'penalties']
     };
 
     const gkKeys = {
         physical: ['pace', 'strength'],
         technical: ['reflexes', 'handling', 'distribution'],
-        mental: ['vision', 'positioning', 'awareness', 'composure', 'aggression']
+        mental: ['positioning', 'composure'],
+        setPieces: ['freeKicks', 'penalties']
     };
 
     const keys = isGK ? gkKeys : outfieldKeys;
     const primaries = primaryAttrs[position] || [];
-    const potential: Record<string, any> = { physical: {}, technical: {}, mental: {} };
-    const current: Record<string, any> = { physical: {}, technical: {}, mental: {} };
+    const potential: Record<string, any> = { physical: {}, technical: {}, mental: {}, setPieces: {} };
+    const current: Record<string, any> = { physical: {}, technical: {}, mental: {}, setPieces: {} };
 
     // 1. Generate Potential with variance based on position
     Object.entries(keys).forEach(([category, attrs]) => {

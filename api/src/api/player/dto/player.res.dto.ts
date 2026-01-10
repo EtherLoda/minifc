@@ -64,10 +64,10 @@ export class PlayerResDto {
     @Expose()
     @Transform(({ value }) => {
         if (!value) return value;
-        const floored: any = { physical: {}, technical: {}, mental: {} };
+        const floored: any = { physical: {}, technical: {}, mental: {}, setPieces: {} };
 
         // Floor all skill values to integers (hide decimals from users)
-        for (const category of ['physical', 'technical', 'mental']) {
+        for (const category of ['physical', 'technical', 'mental', 'setPieces']) {
             if (value[category]) {
                 floored[category] = {};
                 for (const attr in value[category]) {
@@ -82,10 +82,10 @@ export class PlayerResDto {
     @Expose()
     @Transform(({ value }) => {
         if (!value) return value;
-        const floored: any = { physical: {}, technical: {}, mental: {} };
+        const floored: any = { physical: {}, technical: {}, mental: {}, setPieces: {} };
 
         // Floor all skill values to integers (hide decimals from users)
-        for (const category of ['physical', 'technical', 'mental']) {
+        for (const category of ['physical', 'technical', 'mental', 'setPieces']) {
             if (value[category]) {
                 floored[category] = {};
                 for (const attr in value[category]) {

@@ -90,18 +90,20 @@ function generatePlayerAttributes(isGK: boolean, potentialAbility: number, age: 
     const outfieldKeys = {
         physical: ['pace', 'strength'],
         technical: ['finishing', 'passing', 'dribbling', 'defending'],
-        mental: ['positioning', 'composure']
+        mental: ['positioning', 'composure'],
+        setPieces: ['freeKicks', 'penalties']
     };
 
     const gkKeysActual = {
         physical: ['pace', 'strength'],
         technical: ['reflexes', 'handling', 'distribution'],
-        mental: ['positioning', 'composure']
+        mental: ['positioning', 'composure'],
+        setPieces: ['freeKicks', 'penalties']
     };
 
     const keys = isGK ? gkKeysActual : outfieldKeys;
-    const potential: Record<string, any> = { physical: {}, technical: {}, mental: {} };
-    const current: Record<string, any> = { physical: {}, technical: {}, mental: {} };
+    const potential: Record<string, any> = { physical: {}, technical: {}, mental: {}, setPieces: {} };
+    const current: Record<string, any> = { physical: {}, technical: {}, mental: {}, setPieces: {} };
 
     // 1. Generate Potential (with 2 decimal places)
     Object.entries(keys).forEach(([category, attrs]) => {

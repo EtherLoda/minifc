@@ -11,6 +11,7 @@ export interface Team {
     name: string;
     nationality?: string;
     logoUrl?: string;
+    benchConfig?: Record<string, string | null>;
 }
 
 export interface Player {
@@ -268,6 +269,13 @@ export const api = {
     },
 
     getTeam: (id: string) => fetchJson<Team>(`/teams/${id}`),
+
+    updateTeamBenchConfig: (teamId: string, config: any) =>
+        fetchJson<Team>(`/teams/${teamId}/bench-config`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ benchConfig: config })
+        }),
 
     getPlayer: (id: string) => fetchJson<Player>(`/players/${id}`),
 

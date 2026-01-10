@@ -4,6 +4,7 @@ import { TeamHeader } from '@/components/team/TeamHeader';
 import { RosterTable } from '@/components/team/RosterTable';
 import { SkeletonPlayerCard } from '@/components/ui/SkeletonLoader';
 import Link from 'next/link';
+import { TeamBenchConfigWrapper } from './TeamBenchConfigWrapper';
 
 async function TeamData({ id }: { id: string }) {
     const team = await api.getTeam(id);
@@ -14,12 +15,12 @@ async function TeamData({ id }: { id: string }) {
         <div className="min-h-screen font-mono">
             {/* Background is handled globally by layout.tsx */}
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
+            <div className="relative z-10 container mx-auto px-4 py-4 max-w-7xl">
                 {/* Back Button */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <Link
                         href="/"
-                        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
+                        className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
                     >
                         <span className="group-hover:-translate-x-1 transition-transform">←</span>
                         <span className="font-bold tracking-wider">BACK TO HOME</span>
@@ -27,19 +28,19 @@ async function TeamData({ id }: { id: string }) {
                 </div>
 
                 {/* Team Header Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 dark:border-emerald-500/20 dark:bg-emerald-950/20 p-8 backdrop-blur-md shadow-xl shadow-slate-200/50 dark:shadow-[0_0_30px_rgba(2,44,34,0.3)] mb-8">
+                <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white/80 dark:border-emerald-500/20 dark:bg-emerald-950/20 p-6 backdrop-blur-md shadow-xl shadow-slate-200/50 dark:shadow-[0_0_30px_rgba(2,44,34,0.3)] mb-6">
                     {/* Background effects */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                     <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                         {/* Team Logo */}
-                        <div className="w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden backdrop-blur-sm 
+                        <div className="w-20 h-20 rounded-xl flex items-center justify-center overflow-hidden backdrop-blur-sm
                             bg-slate-100 border-2 border-slate-200 shadow-md
                             dark:bg-black/40 dark:border-emerald-500/30 dark:shadow-[0_0_20px_rgba(52,211,153,0.2)]">
                             {team.logoUrl ? (
                                 <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-4xl font-black text-slate-700 dark:text-emerald-400">{team.name.charAt(0)}</span>
+                                <span className="text-3xl font-black text-slate-700 dark:text-emerald-400">{team.name.charAt(0)}</span>
                             )}
                         </div>
 
@@ -48,7 +49,7 @@ async function TeamData({ id }: { id: string }) {
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Active Squad
                             </div>
-                            <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r 
+                            <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r
                                 from-emerald-600 via-emerald-500 to-emerald-700
                                 dark:from-white dark:via-emerald-200 dark:to-emerald-400 dark:drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">
                                 {team.name}
@@ -58,39 +59,42 @@ async function TeamData({ id }: { id: string }) {
                 </div>
 
                 {/* Squad Roster */}
-                <div className="mb-8">
+                <div className="mb-4">
                     <RosterTable players={players} />
                 </div>
 
+                {/* Bench Configuration - Only visible to team owner */}
+                <Suspense fallback={<div className="h-32 bg-emerald-950/20 animate-pulse rounded-xl" />}>
+                    <TeamBenchConfigWrapper teamId={id} />
+                </Suspense>
+
                 {/* Additional Sections Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Schedule Section */}
-                    <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-6 backdrop-blur-md">
-                        <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl"></div>
-                        <h2 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-400 mb-4">
+                    <div className="relative overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-950/20 p-4 backdrop-blur-md">
+                        <h2 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-400 mb-3">
                             Upcoming Matches
                         </h2>
-                        <p className="text-emerald-600 text-sm font-mono">No matches scheduled</p>
+                        <p className="text-emerald-600 text-xs font-mono">No matches scheduled</p>
                     </div>
 
                     {/* Club Info */}
-                    <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-6 backdrop-blur-md">
-                        <div className="absolute bottom-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
-                        <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-400 mb-6">
+                    <div className="relative overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-950/20 p-4 backdrop-blur-md">
+                        <h2 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-400 mb-3">
                             Club Statistics
                         </h2>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center border-b border-emerald-900/30 pb-3">
-                                <span className="text-emerald-600 text-xs font-bold tracking-wider uppercase">Matches</span>
-                                <span className="text-white font-mono text-xl font-bold">0</span>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center border-b border-emerald-900/30 pb-1.5">
+                                <span className="text-emerald-600 text-[10px] font-bold tracking-wider uppercase">Matches</span>
+                                <span className="text-white font-mono text-lg font-bold">0</span>
                             </div>
-                            <div className="flex justify-between items-center border-b border-emerald-900/30 pb-3">
-                                <span className="text-emerald-600 text-xs font-bold tracking-wider uppercase">Wins</span>
-                                <span className="text-emerald-400 font-mono text-xl font-bold">0</span>
+                            <div className="flex justify-between items-center border-b border-emerald-900/30 pb-1.5">
+                                <span className="text-emerald-600 text-[10px] font-bold tracking-wider uppercase">Wins</span>
+                                <span className="text-emerald-400 font-mono text-lg font-bold">0</span>
                             </div>
-                            <div className="flex justify-between items-center pt-1">
-                                <span className="text-emerald-600 text-xs font-bold tracking-wider uppercase">Goals</span>
-                                <span className="text-white font-mono text-xl font-bold">0</span>
+                            <div className="flex justify-between items-center pt-0.5">
+                                <span className="text-emerald-600 text-[10px] font-bold tracking-wider uppercase">Goals</span>
+                                <span className="text-white font-mono text-lg font-bold">0</span>
                             </div>
                         </div>
                     </div>
@@ -108,7 +112,7 @@ function TeamLoadingSkeleton() {
                 <div className="absolute top-[-10%] left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] animate-pulse"></div>
             </div>
 
-            <div className="relative z-10 container mx-auto px-4 py-8">
+            <div className="relative z-10 container mx-auto px-4 py-4 max-w-7xl">
                 <div className="mb-6">
                     <div className="h-4 w-32 bg-emerald-950/40 rounded animate-pulse"></div>
                 </div>

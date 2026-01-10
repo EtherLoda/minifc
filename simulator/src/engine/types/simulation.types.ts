@@ -22,6 +22,7 @@ export interface TacticalPlayer {
     positionKey: string;
     entryMinute?: number; // Minute they entered the pitch (0 if starter)
     isSentOff?: boolean;
+    yellowCards?: number; // Track yellow cards (2 = send off)
 }
 
 export interface TeamSnapshot {

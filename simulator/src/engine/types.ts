@@ -20,6 +20,14 @@ export enum MatchEventType {
     PENALTY = 19,
     FORFEIT = 20,
     SNAPSHOT = 21,
+    // New events
+    MATCH_START = 22,      // Match starts with lineup announcement
+    SECOND_HALF_START = 23, // Second half kickoff
+    EXTRA_TIME_START = 24,  // Extra time kickoff
+    PENALTY_START = 25,     // Penalty shootout starts
+    CELEBRATION = 26,       // Goal celebration
+    NEUTRAL_EVENT = 27,     // Neutral events (crowd, etc)
+    CLEARANCE = 28,         // Ball cleared from danger zone
 }
 
 export type Zone = 'Defense' | 'Midfield' | 'Attack';
@@ -44,6 +52,8 @@ export interface MatchState {
     currentSecond: number; // Seconds (0-59)
     homeScore: number;
     awayScore: number;
+    homeTeamId: string;
+    awayTeamId: string;
     possessionTeamId: string | null;
     ballZone: Zone;
     isBallInPlay: boolean;

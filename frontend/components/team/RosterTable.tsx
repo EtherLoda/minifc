@@ -98,6 +98,14 @@ export function RosterTable({ players }: RosterTableProps) {
                 color: 'purple',
                 bgColor: 'bg-white/60 dark:bg-purple-950/30',
                 borderColor: 'border-slate-200 dark:border-purple-500/20'
+            },
+            {
+                key: 'setPieces',
+                label: 'Set Pieces',
+                icon: '🎯',
+                color: 'amber',
+                bgColor: 'bg-white/60 dark:bg-amber-950/30',
+                borderColor: 'border-slate-200 dark:border-amber-500/20'
             }
         ];
 
@@ -106,7 +114,8 @@ export function RosterTable({ players }: RosterTableProps) {
                 {categories.map(cat => {
                     const group = skills[cat.key] || {};
                     const textColor = cat.color === 'emerald' ? 'text-emerald-500' :
-                        cat.color === 'blue' ? 'text-blue-500' : 'text-purple-400';
+                        cat.color === 'blue' ? 'text-blue-500' :
+                        cat.color === 'amber' ? 'text-amber-500' : 'text-purple-400';
 
                     return (
                         <div key={cat.key} className={`rounded-lg ${cat.bgColor} border ${cat.borderColor} p-3`}>
@@ -162,36 +171,33 @@ export function RosterTable({ players }: RosterTableProps) {
         <div className="relative overflow-hidden rounded-xl border transition-all duration-300
             bg-white border-emerald-500/40 shadow-none
             dark:border-emerald-500/20 dark:bg-emerald-950/20 dark:backdrop-blur-md">
-            {/* Background effect */}
-            <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl"></div>
-
             {/* Header */}
-            <div className="relative z-10 p-6 border-b 
+            <div className="relative z-10 p-5 border-b
                 bg-white border-emerald-500/40
                 dark:bg-transparent dark:border-emerald-500/20">
-                <h2 className="text-3xl font-black italic mb-0
+                <h2 className="text-2xl font-black italic mb-0
                     text-emerald-900
                     dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-emerald-400 dark:to-green-400">
                     Squad Roster
                 </h2>
-                <p className="text-emerald-600 text-sm font-mono tracking-wider uppercase mt-2">
+                <p className="text-emerald-600 text-sm font-mono tracking-wider uppercase mt-1">
                     {players.length} Players Active
                 </p>
             </div>
 
             {/* Player Cards Grid */}
-            <div className="relative z-10 p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="relative z-10 p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {sortedPlayers.map((player, index) => (
                         <Link
                             key={player.id}
                             href={`/players/${player.id}`}
-                            className="group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 p-4 md:p-5 backdrop-blur-sm
+                            className="group relative overflow-hidden rounded-xl border-2 transition-all duration-300 p-4 backdrop-blur-sm
                                 bg-white border-emerald-500/40 shadow-none hover:border-emerald-500 hover:shadow-none hover:-translate-y-1
                                 dark:bg-black/40 dark:border-emerald-500/20 dark:hover:bg-emerald-500/5 dark:hover:border-emerald-400/40"
                         >
                             {/* Scanline effect */}
-                            <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.05)_50%)] bg-[size:100%_4px] pointer-events-none rounded-2xl"></div>
+                            <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.05)_50%)] bg-[size:100%_4px] pointer-events-none rounded-xl"></div>
 
                             <div className="flex gap-4">
                                 {/* Left: Avatar with Number Badge */}
@@ -201,8 +207,8 @@ export function RosterTable({ players }: RosterTableProps) {
                                             appearance={getPlayerAppearance(player)}
                                             size={80}
                                         />
-                                        {/* Number Badge - 头像右下角 */}
-                                        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm
+                                        {/* Number Badge */}
+                                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-lg flex items-center justify-center font-black text-sm
                                             bg-emerald-500 text-white border-2 border-white dark:border-slate-900 shadow-sm">
                                             {index + 1}
                                         </div>
@@ -211,10 +217,10 @@ export function RosterTable({ players }: RosterTableProps) {
 
                                 {/* Right: Info Area */}
                                 <div className="flex-1 min-w-0">
-                                    {/* Top Row: Name + Age + List Button */}
+                                    {/* Top Row: Name + Age */}
                                     <div className="flex items-start justify-between gap-2 mb-2">
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-black text-lg transition-colors truncate
+                                            <h3 className="font-black text-base transition-colors truncate
                                                 text-slate-900 group-hover:text-emerald-700
                                                 dark:text-white dark:group-hover:text-emerald-300">
                                                 {player.name}
@@ -272,7 +278,7 @@ export function RosterTable({ players }: RosterTableProps) {
 
                             {/* Detailed Skills - Only for own squad */}
                             {isOwnSquad && (
-                                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                                     {renderPlayerSkills(player)}
                                 </div>
                             )}
@@ -302,7 +308,7 @@ export function RosterTable({ players }: RosterTableProps) {
             )}
 
             {/* Footer */}
-            <div className="relative z-10 p-5 border-t 
+            <div className="relative z-10 p-4 border-t
                 bg-emerald-50 border-emerald-500/40
                 dark:border-emerald-500/20 dark:bg-black/20">
                 <p className="text-sm font-mono text-center tracking-wider

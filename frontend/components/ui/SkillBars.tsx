@@ -53,6 +53,20 @@ export function SkillBars({ currentSkills, potentialSkills, isGoalkeeper }: Skil
                     });
                 });
             }
+
+            // Set Pieces skills
+            if (currentSkills.setPieces) {
+                Object.entries(currentSkills.setPieces).forEach(([key, value]) => {
+                    const potential = potentialSkills?.setPieces?.[key] || (value as number);
+                    skills.push({
+                        category: 'setPieces',
+                        name: key,
+                        current: Math.floor(value as number),
+                        potential: Math.floor(potential),
+                        label: key === 'freeKicks' ? 'Free Kicks' : 'Penalties'
+                    });
+                });
+            }
         }
         
         return skills;
@@ -79,6 +93,13 @@ export function SkillBars({ currentSkills, potentialSkills, isGoalkeeper }: Skil
             text: 'text-purple-600 dark:text-purple-400',
             bar: 'bg-purple-500',
             barLight: 'bg-purple-400'
+        },
+        setPieces: {
+            bg: 'bg-amber-500/10 dark:bg-amber-500/5',
+            border: 'border-amber-500/30 dark:border-amber-500/20',
+            text: 'text-amber-600 dark:text-amber-400',
+            bar: 'bg-amber-500',
+            barLight: 'bg-amber-400'
         }
     };
 
@@ -91,7 +112,7 @@ export function SkillBars({ currentSkills, potentialSkills, isGoalkeeper }: Skil
     return (
         <div className="space-y-2.5">
             {/* Group skills by category */}
-            {['physical', 'technical', 'mental'].map(category => {
+            {['physical', 'technical', 'mental', 'setPieces'].map(category => {
                 const categorySkills = skills.filter(s => s.category === category);
                 if (categorySkills.length === 0) return null;
                 

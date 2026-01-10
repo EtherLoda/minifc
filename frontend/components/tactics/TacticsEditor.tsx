@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, api } from '@/lib/api';
 import { PitchLayout } from './PitchLayout';
 import { PlayerRoster } from './PlayerRoster';
+import { Bench } from './Bench';
 import { Save, Lock, Clock, Plus, Trash2, ArrowRightLeft, UserMinus, UserPlus, Move } from 'lucide-react';
 import { useNotification } from '@/components/ui/NotificationContext';
 import { PlayerSelect } from '@/components/ui/PlayerSelect';
 import { PositionSelect } from '@/components/ui/PositionSelect';
+import { BenchConfig, BENCH_SLOTS } from '@/types/team';
 
 interface TacticalEvent {
     minute: number;
@@ -23,6 +25,7 @@ interface TacticsEditorProps {
     initialTactics: any;
     matchScheduledAt: string; // ISO date string
     matchStatus: string;
+    onLineupChange?: (formation: string, playerCount: number) => void;
 }
 
 const POSITIONS = [
@@ -70,7 +73,7 @@ BACKEND_TO_FRONTEND['RM'] = 'RM';
 BACKEND_TO_FRONTEND['CML'] = 'CML';
 BACKEND_TO_FRONTEND['CMR'] = 'CMR';
 
-export function TacticsEditor({ matchId, teamId, players, initialTactics, matchScheduledAt, matchStatus }: TacticsEditorProps) {
+export function TacticsEditor({ matchId, teamId, players, initialTactics, matchScheduledAt, matchStatus, onLineupChange }: TacticsEditorProps) {
     const [lineup, setLineup] = useState<Record<string, string | null>>(() => {
         const initial: Record<string, string | null> = {};
         POSITIONS.forEach(pos => initial[pos] = null);
@@ -84,6 +87,13 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
             });
         }
 
+        return initial;
+    });
+
+    // Bench state for 5 bench slots (drag and drop)
+    const [bench, setBench] = useState<Record<string, string | null>>(() => {
+        const initial: Record<string, string | null> = {};
+        BENCH_SLOTS.forEach(slot => initial[slot] = null);
         return initial;
     });
 
@@ -120,7 +130,32 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isTacticsLocked, setIsTacticsLocked] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const [benchConfig, setBenchConfig] = useState<BenchConfig>({
+        goalkeeper: null,
+        centerBack: null,
+        fullback: null,
+        winger: null,
+        centralMidfield: null,
+        forward: null
+    });
+    const [benchConfigChanged, setBenchConfigChanged] = useState(false);
     const { showNotification } = useNotification();
+
+    // Load bench config on mount
+    useEffect(() => {
+        const loadBenchConfig = async () => {
+            try {
+                const team = await api.getTeam(teamId);
+                const config = (team as any).benchConfig;
+                if (config) {
+                    setBenchConfig(config);
+                }
+            } catch (err) {
+                console.error('Failed to load bench config:', err);
+            }
+        };
+        loadBenchConfig();
+    }, [teamId]);
 
     // Check tactics lock status and countdown
     useEffect(() => {
@@ -168,13 +203,12 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
         const player = players.find(p => p.id === draggedPlayer);
         if (!player) return;
 
-        if (position === 'GK') {
-            if (!player.isGoalkeeper) {
-                showNotification({ type: 'warning', title: 'Invalid Position', message: 'Only goalkeepers can be placed in the GK position.' });
-                setDraggedPlayer(null);
-                setDraggedFrom(null);
-                return;
-            }
+        // Validate GK position
+        if (position === 'GK' && !player.isGoalkeeper) {
+            showNotification({ type: 'warning', title: 'Invalid Position', message: 'Only goalkeepers can be placed in the GK position.' });
+            setDraggedPlayer(null);
+            setDraggedFrom(null);
+            return;
         }
 
         if (player.isGoalkeeper && position !== 'GK') {
@@ -184,11 +218,85 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
             return;
         }
 
+        // Check if player is currently on bench
+        const benchSlot = Object.entries(bench).find(([_, pid]) => pid === draggedPlayer)?.[0];
+
         const newLineup = { ...lineup };
-        if (draggedFrom) newLineup[draggedFrom] = null;
+        if (draggedFrom && BENCH_SLOTS.includes(draggedFrom)) {
+            // Remove from bench
+            setBench(prev => ({ ...prev, [draggedFrom]: null }));
+        } else if (draggedFrom) {
+            // Remove from another pitch position
+            newLineup[draggedFrom] = null;
+        }
+
+        // If player was on another bench slot, remove them from there too
+        if (benchSlot && benchSlot !== draggedFrom) {
+            setBench(prev => ({ ...prev, [benchSlot]: null }));
+        }
+
         newLineup[position] = draggedPlayer;
 
         setLineup(newLineup);
+        setDraggedPlayer(null);
+        setDraggedFrom(null);
+    };
+
+    const handleDropOnBench = (benchSlot: string) => {
+        if (!draggedPlayer) return;
+
+        const player = players.find(p => p.id === draggedPlayer);
+        if (!player) return;
+
+        const isGKBenchSlot = benchSlot === 'BENCH1';
+
+        // GK slot can only accept goalkeepers
+        if (isGKBenchSlot && !player.isGoalkeeper) {
+            showNotification({ type: 'warning', title: 'Invalid Position', message: 'Only goalkeepers can be placed in the GK substitute position.' });
+            setDraggedPlayer(null);
+            setDraggedFrom(null);
+            return;
+        }
+
+        // Other bench slots cannot accept goalkeepers
+        if (!isGKBenchSlot && player.isGoalkeeper) {
+            showNotification({ type: 'warning', title: 'Invalid Position', message: 'Goalkeepers can only be placed in the GK substitute position.' });
+            setDraggedPlayer(null);
+            setDraggedFrom(null);
+            return;
+        }
+
+        // Remove player from pitch if they were on pitch
+        const newLineup = { ...lineup };
+        if (draggedFrom && !BENCH_SLOTS.includes(draggedFrom)) {
+            newLineup[draggedFrom] = null;
+        }
+
+        // Remove player from any other bench slot
+        const currentBenchSlot = Object.entries(bench).find(([_, pid]) => pid === draggedPlayer)?.[0];
+        const newBench = { ...bench };
+        if (currentBenchSlot && currentBenchSlot !== benchSlot) {
+            newBench[currentBenchSlot] = null;
+        }
+
+        // If target slot is occupied, swap with the player at target
+        if (newBench[benchSlot]) {
+            if (draggedFrom && !BENCH_SLOTS.includes(draggedFrom)) {
+                // Swap: move occupant to pitch position
+                newBench[benchSlot] = draggedPlayer;
+                newLineup[draggedFrom] = newBench[benchSlot];
+            } else if (draggedFrom && BENCH_SLOTS.includes(draggedFrom)) {
+                // Swap bench slots
+                const occupant = newBench[benchSlot];
+                newBench[benchSlot] = draggedPlayer;
+                newBench[draggedFrom] = occupant;
+            }
+        } else {
+            newBench[benchSlot] = draggedPlayer;
+        }
+
+        setLineup(newLineup);
+        setBench(newBench);
         setDraggedPlayer(null);
         setDraggedFrom(null);
     };
@@ -219,6 +327,40 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
         const current = tacticalEvents[index];
         const updated = { ...current, ...updates };
 
+        // Validate substitution - GK can only be replaced by GK
+        if (updated.type === 'sub') {
+            if (updates.playerB && updated.playerA) {
+                const pA = players.find(p => p.id === updated.playerA);
+                const pB = players.find(p => p.id === updates.playerB);
+                if (pA && pB && pA.isGoalkeeper !== pB.isGoalkeeper) {
+                    showNotification({ type: 'warning', title: 'Invalid Substitution', message: pA.isGoalkeeper ? 'Goalkeepers must be replaced by another Goalkeeper.' : 'Outfielders cannot be replaced by a Goalkeeper.' });
+                    return;
+                }
+            }
+            // Auto-clear if incompatible
+            if (updates.playerA && updated.playerB) {
+                const pA = players.find(p => p.id === updates.playerA);
+                const pB = players.find(p => p.id === updated.playerB);
+                if (pA && pB && pA.isGoalkeeper !== pB.isGoalkeeper) {
+                    setTacticalEvents(prev => {
+                        const next = [...prev];
+                        next[index] = { ...updated, playerB: '' };
+                        return next;
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Validate move - cannot move to same position
+        if (updated.type === 'move' && updates.playerB && updated.playerA) {
+            const currentPos = Object.entries(lineup).find(([_, pid]) => pid === updated.playerA)?.[0];
+            if (currentPos === updates.playerB) {
+                showNotification({ type: 'warning', title: 'Invalid Move', message: 'Cannot move a player to their current position.' });
+                return;
+            }
+        }
+
         // 1. Type Switch Reset
         if (updates.type && updates.type !== current.type) {
             setTacticalEvents(prev => {
@@ -227,57 +369,6 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
                 return next;
             });
             return;
-        }
-
-        // 2. Validation
-        if (updated.type === 'sub') {
-            // If changing B (In Player), check compatibility with A
-            if (updates.playerB && updated.playerA) {
-                const pA = players.find(p => p.id === updated.playerA);
-                const pB = players.find(p => p.id === updates.playerB);
-                if (pA && pB && pA.isGoalkeeper !== pB.isGoalkeeper) {
-                    showNotification({ type: 'error', title: 'Invalid Substitution', message: pA.isGoalkeeper ? 'Goalkeepers must be replaced by another Goalkeeper.' : 'Outfielders cannot be replaced by a Goalkeeper.' });
-                    return; // Block update
-                }
-            }
-            // If changing A (Out Player), check compatibility with B (if exists)
-            if (updates.playerA && updated.playerB) {
-                const pA = players.find(p => p.id === updates.playerA);
-                const pB = players.find(p => p.id === updated.playerB);
-                if (pA && pB && pA.isGoalkeeper !== pB.isGoalkeeper) {
-                    // Auto-clear B
-                    setTacticalEvents(prev => {
-                        const next = [...prev];
-                        next[index] = { ...updated, playerB: '' };
-                        return next;
-                    });
-                    return;
-                }
-            }
-        }
-
-        if (updated.type === 'move') {
-            // If changing B (Position), check if = A's position
-            if (updates.playerB && updated.playerA) {
-                const currentPos = Object.entries(lineup).find(([_, pid]) => pid === updated.playerA)?.[0];
-                if (currentPos === updates.playerB) {
-                    showNotification({ type: 'warning', title: 'Invalid Move', message: 'Cannot move a player to their current position.' });
-                    return; // Block
-                }
-            }
-            // If changing A, check if matches B
-            if (updates.playerA && updated.playerB) {
-                const currentPos = Object.entries(lineup).find(([_, pid]) => pid === updates.playerA)?.[0];
-                if (currentPos === updated.playerB) {
-                    // Auto-clear B
-                    setTacticalEvents(prev => {
-                        const next = [...prev];
-                        next[index] = { ...updated, playerB: '' };
-                        return next;
-                    });
-                    return;
-                }
-            }
         }
 
         setTacticalEvents(prev => {
@@ -295,10 +386,12 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
         const assignedPlayers = Object.values(lineup).filter(Boolean);
         const playerCount = assignedPlayers.length;
 
+        // 1. Check required goalkeeper
         if (!lineup.GK) return { valid: false, error: 'Goalkeeper is required' };
         const gkPlayer = players.find(p => p.id === lineup.GK);
         if (gkPlayer && !gkPlayer.isGoalkeeper) return { valid: false, error: 'Only a goalkeeper can play in GK position' };
 
+        // 2. Check outfielders in GK position
         for (const [position, playerId] of Object.entries(lineup)) {
             if (position !== 'GK' && playerId) {
                 const player = players.find(p => p.id === playerId);
@@ -306,6 +399,17 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
             }
         }
 
+        // 3. Check bench - GK can only be in BENCH1
+        const benchGkPlayer = players.find(p => p.id === bench.BENCH1);
+        if (benchGkPlayer && !benchGkPlayer.isGoalkeeper) return { valid: false, error: 'Only goalkeepers can be placed in GK substitute position' };
+        for (const [slot, playerId] of Object.entries(bench)) {
+            if (slot !== 'BENCH1' && playerId) {
+                const player = players.find(p => p.id === playerId);
+                if (player?.isGoalkeeper) return { valid: false, error: 'Goalkeepers can only be placed in GK substitute position' };
+            }
+        }
+
+        // 4. Player count
         if (playerCount < 9) return { valid: false, error: `Minimum 9 players required (currently ${playerCount})` };
         if (playerCount > 11) return { valid: false, error: `Maximum 11 players allowed (currently ${playerCount})` };
 
@@ -335,6 +439,29 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
             return;
         }
 
+        // Validate GK substitution compatibility
+        for (const event of tacticalEvents) {
+            if (event.type === 'sub') {
+                const pA = players.find(p => p.id === event.playerA);
+                const pB = players.find(p => p.id === event.playerB);
+                if (pA && pB && pA.isGoalkeeper !== pB.isGoalkeeper) {
+                    showNotification({ type: 'warning', title: 'Invalid Substitution', message: `Goalkeepers must be replaced by another Goalkeeper at minute ${event.minute}.` });
+                    return;
+                }
+            }
+        }
+
+        // Validate move - player not moving to same position
+        for (const event of tacticalEvents) {
+            if (event.type === 'move') {
+                const currentPos = Object.entries(lineup).find(([_, pid]) => pid === event.playerA)?.[0];
+                if (currentPos === event.playerB) {
+                    showNotification({ type: 'warning', title: 'Invalid Move', message: `Cannot move a player to their current position at minute ${event.minute}.` });
+                    return;
+                }
+            }
+        }
+
         setIsSubmitting(true);
 
         const backendLineup: Record<string, string> = {};
@@ -362,6 +489,13 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
             const instructions = { moves };
 
             await api.submitTactics(matchId, teamId, backendLineup, formationStr, substitutions, instructions);
+
+            // Save bench config if changed
+            if (benchConfigChanged) {
+                await api.updateTeamBenchConfig(teamId, benchConfig);
+                setBenchConfigChanged(false);
+            }
+
             showNotification({
                 type: 'success',
                 title: 'Tactics Saved',
@@ -389,7 +523,16 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
 
     const validation = validateLineup();
     const formation = generateFormation();
-    const assignedPlayerIds = new Set(Object.values(lineup).filter((id): id is string => id !== null));
+    const lineupPlayerIds = new Set(Object.values(lineup).filter((id): id is string => id !== null));
+    const benchPlayerIds = new Set(Object.values(bench).filter((id): id is string => id !== null));
+    const assignedPlayerIds = new Set([...lineupPlayerIds, ...benchPlayerIds]);
+
+    // Notify parent of lineup changes
+    React.useEffect(() => {
+        if (onLineupChange) {
+            onLineupChange(formation, assignedPlayerIds.size);
+        }
+    }, [formation, assignedPlayerIds.size, onLineupChange]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px] gap-6">
@@ -399,6 +542,15 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
                     players={players}
                     onDrop={handleDrop}
                     onRemove={handleRemovePlayer}
+                    onDragStart={(playerId, position) => handleDragStart(playerId, position)}
+                    onDragEnd={handleDragEnd}
+                    isDragging={draggedPlayer !== null}
+                />
+                <Bench
+                    bench={bench}
+                    players={players}
+                    onDrop={handleDropOnBench}
+                    onRemove={(slot) => setBench(prev => ({ ...prev, [slot]: null }))}
                     onDragStart={(playerId, position) => handleDragStart(playerId, position)}
                     onDragEnd={handleDragEnd}
                     isDragging={draggedPlayer !== null}
@@ -434,21 +586,6 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
                         </div>
                     </div>
                 )}
-
-                <div className="p-4 rounded-xl border-2 bg-white border-emerald-500/40 dark:bg-emerald-950/20 dark:border-emerald-500/30">
-                    <div className="space-y-3">
-                        <div>
-                            <div className="text-xs text-slate-500 dark:text-emerald-600 uppercase tracking-wider mb-1">Formation</div>
-                            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-400">{formation}</div>
-                        </div>
-                        <div>
-                            <div className="text-xs text-slate-500 dark:text-emerald-600 uppercase tracking-wider mb-1">Players</div>
-                            <div className={`text-lg font-bold ${validation.valid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                                {Object.values(lineup).filter(Boolean).length} / 11
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <div className="p-5 rounded-2xl border-2 bg-gradient-to-br from-white to-slate-50 border-blue-500/40 dark:from-blue-950/20 dark:to-black/40 dark:border-blue-500/30 shadow-sm relative overflow-hidden group/subs transition-all hover:border-blue-500/60">
                     <div className="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover/subs:bg-blue-500/10 transition-colors" />
@@ -629,15 +766,6 @@ export function TacticsEditor({ matchId, teamId, players, initialTactics, matchS
                         )}
                     </div>
                 </button>
-
-                {!validation.valid && validation.error && (
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 font-bold uppercase tracking-tight">
-                        <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            {validation.error}
-                        </div>
-                    </div>
-                )}
 
                 <PlayerRoster
                     players={players}

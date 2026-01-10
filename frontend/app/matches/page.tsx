@@ -37,7 +37,7 @@ export default function MatchesPage() {
 
     if (loading) {
         return (
-            <div className="container mx-auto px-4 py-8 space-y-8">
+            <div className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
                 <Skeleton className="h-12 w-64" />
                 <Skeleton className="h-[600px] w-full rounded-2xl" />
             </div>
@@ -47,7 +47,7 @@ export default function MatchesPage() {
     const myMatches = matches.filter(m => m.homeTeamId === user?.teamId || m.awayTeamId === user?.teamId);
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                     <div className="flex items-center gap-3 mb-2 text-xs font-bold tracking-[0.2em] uppercase text-emerald-600 dark:text-emerald-400">

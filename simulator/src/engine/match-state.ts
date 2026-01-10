@@ -6,6 +6,8 @@ export class MatchState implements IMatchState {
     currentSecond: number = 0;
     homeScore: number = 0;
     awayScore: number = 0;
+    homeTeamId: string = '';
+    awayTeamId: string = '';
     possessionTeamId: string | null = null;
     ballZone: Zone = 'Midfield';
     isBallInPlay: boolean = false;
@@ -66,24 +68,16 @@ export class MatchState implements IMatchState {
 
         // Update score if goal
         if (event.type === MatchEventType.GOAL) {
-            if (event.teamId === this.possessionTeamId) { // Assuming possession team scored
-                // We need to know which team is home/away to update score correctly
-                // This might require passing homeTeamId/awayTeamId to the state or checking event.teamId
+            if (event.teamId === this.homeTeamId) {
+                this.homeScore++;
+            } else if (event.teamId === this.awayTeamId) {
+                this.awayScore++;
             }
         }
     }
 
     updateStat(teamId: string, stat: keyof TeamMatchStats, value: number = 1) {
-        // We need to know if teamId is home or away. 
-        // Ideally MatchState should know the home/away team IDs.
-        // For now, we'll assume the caller handles this or we add homeTeamId/awayTeamId to the class.
-    }
-
-    // Helper to set team IDs
-    setTeamIds(homeTeamId: string, awayTeamId: string) {
-        // We can store these to help with stat updates
-        (this as any).homeTeamId = homeTeamId;
-        (this as any).awayTeamId = awayTeamId;
+        // Helper method - caller should use incrementStat with isHomeTeam boolean
     }
 
     incrementStat(isHomeTeam: boolean, stat: keyof TeamMatchStats, value: number = 1) {

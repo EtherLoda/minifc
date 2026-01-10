@@ -10,7 +10,7 @@ import { CreateTeamReqDto } from './dto/create-team.req.dto';
 import { ListTeamReqDto } from './dto/list-team.req.dto';
 import { TeamResDto } from './dto/team.res.dto';
 import { UpdateTeamReqDto } from './dto/update-team.req.dto';
-import { TeamEntity } from '@goalxi/database';
+import { TeamEntity, BenchConfig } from '@goalxi/database';
 
 import { PlayerService } from '../player/player.service';
 import { PlayerEntity } from '@goalxi/database';
@@ -103,6 +103,16 @@ export class TeamService {
         if (reqDto.jerseyColorPrimary) team.jerseyColorPrimary = reqDto.jerseyColorPrimary;
         if (reqDto.jerseyColorSecondary) team.jerseyColorSecondary = reqDto.jerseyColorSecondary;
 
+        await team.save();
+
+        return this.mapToResDto(team);
+    }
+
+    async updateBenchConfig(id: Uuid, benchConfig: BenchConfig): Promise<TeamResDto> {
+        assert(id, 'id is required');
+        const team = await TeamEntity.findOneByOrFail({ id });
+
+        team.benchConfig = benchConfig;
         await team.save();
 
         return this.mapToResDto(team);

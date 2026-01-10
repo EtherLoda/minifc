@@ -18,7 +18,7 @@ export default async function LeagueDashboard({ params }: PageProps) {
         ]);
 
         return (
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 py-8 max-w-7xl">
                 <div className="mb-12">
                     <div className="relative overflow-hidden rounded-2xl border transition-all duration-300 p-8
                         bg-white border-emerald-500/40 shadow-none

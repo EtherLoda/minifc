@@ -91,7 +91,16 @@ export class SimulationProcessor extends WorkerHost {
             throw new Error(`Tactics missing for match ${match.id}`);
         }
 
-        // 2. Fetch Players
+        // 2. Fetch Teams with Bench Config
+        const [homeTeamEntity, awayTeamEntity] = await Promise.all([
+            this.teamRepository.findOne({ where: { id: match.homeTeamId } }),
+            this.teamRepository.findOne({ where: { id: match.awayTeamId } }),
+        ]);
+
+        const homeBenchConfig = homeTeamEntity?.benchConfig || null;
+        const awayBenchConfig = awayTeamEntity?.benchConfig || null;
+
+        // 3. Fetch Players
         const homeStarterIds = Object.values(homeTactics.lineup).filter(id => typeof id === 'string');
         const awayStarterIds = Object.values(awayTactics.lineup).filter(id => typeof id === 'string');
         const homeSubIds = (homeTactics.substitutions || []).map(s => s.in);
@@ -170,7 +179,7 @@ export class SimulationProcessor extends WorkerHost {
         const tA = new Team(match.homeTeam!.name, homeTacticalPlayers);
         const tB = new Team(match.awayTeam!.name, awayTacticalPlayers);
 
-        const engine = new MatchEngine(tA, tB, homeInstructions, awayInstructions, subMap);
+        const engine = new MatchEngine(tA, tB, homeInstructions, awayInstructions, subMap, homeBenchConfig, awayBenchConfig);
 
         // 5. Run Match
         this.logger.log(`[Simulator] Starting engine for ${match.id}`);

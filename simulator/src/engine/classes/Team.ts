@@ -24,6 +24,14 @@ export class Team {
     }
 
     /**
+     * Get player energy by player ID
+     */
+    getPlayerEnergy(playerId: string): number | undefined {
+        const idx = this.playerToIdx.get(playerId);
+        return idx !== undefined ? this.playerFitness[idx] : undefined;
+    }
+
+    /**
      * Updates player fitness levels based on minutes played.
      */
     updateCondition(minutesDelta: number, isHalfTime: boolean = false) {
@@ -165,6 +173,7 @@ export class Team {
             this.playerFitness[index] = newPlayer.currentStamina || 3.0;
             inTacticalPlayer.entryMinute = 0; // Default, expected to be set by caller
             inTacticalPlayer.isSentOff = false;
+            inTacticalPlayer.yellowCards = 0; // Reset yellow cards for new player
             this.players[index] = inTacticalPlayer;
         }
     }

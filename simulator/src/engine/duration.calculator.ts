@@ -85,6 +85,6 @@ export class DurationCalculator {
      * Get minute when extra time starts (if applicable)
      */
     static getExtraTimeStartMinute(duration: MatchDuration): number {
-        return 90 + 15; // After regular time + break
+        return 90 + (duration.extraTimeBreak || 15);
     }
 }

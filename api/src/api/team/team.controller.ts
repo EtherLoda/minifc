@@ -19,6 +19,7 @@ import { UpdateTeamReqDto } from './dto/update-team.req.dto';
 import { TeamService } from './team.service';
 
 import { Public } from '@/decorators/public.decorator';
+import { BenchConfig } from '@goalxi/database';
 
 @ApiTags('Team')
 @Controller({
@@ -61,6 +62,15 @@ export class TeamController {
         @Body() dto: UpdateTeamReqDto,
     ): Promise<TeamResDto> {
         return this.teamService.update(id, dto);
+    }
+
+    @Patch(':id/bench-config')
+    @HttpCode(HttpStatus.OK)
+    async updateBenchConfig(
+        @Param('id') id: Uuid,
+        @Body() body: { benchConfig: BenchConfig },
+    ): Promise<TeamResDto> {
+        return this.teamService.updateBenchConfig(id, body.benchConfig);
     }
 
     @Delete(':id')

@@ -87,7 +87,7 @@ describe('MatchEngine', () => {
     it('should update player condition (stamina) during simulation', () => {
         engine.simulateMatch();
         const player = homeTeam.players[1].player; // Outfield
-        const currentEnergy = engine.homeTeam.playerEnergies.get(player.id);
+        const currentEnergy = engine.homeTeam.getPlayerEnergy(player.id);
         expect(currentEnergy).toBeDefined();
         expect(currentEnergy).toBeLessThan(100);
     });
@@ -155,7 +155,7 @@ describe('MatchEngine', () => {
         expect(firstSnapshot.data).toBeDefined();
         expect(firstSnapshot.data.home).toBeDefined();
         expect(firstSnapshot.data.home.laneStrengths).toBeDefined();
-        expect(firstSnapshot.data.home.playerEnergies).toBeDefined();
-        expect(Object.keys(firstSnapshot.data.home.playerEnergies).length).toBeGreaterThan(0);
+        expect(firstSnapshot.data.home.ps).toBeDefined(); // player states
+        expect(firstSnapshot.data.home.ps.length).toBeGreaterThan(0);
     });
 });

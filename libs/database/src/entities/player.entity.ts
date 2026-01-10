@@ -46,10 +46,16 @@ export interface GKTechnical {
     distribution: number;
 }
 
+export interface SetPiecesSkills {
+    freeKicks: number;
+    penalties: number;
+}
+
 export interface PlayerSkills {
     physical: OutfieldPhysical;
     technical: OutfieldTechnical | GKTechnical;
     mental: OutfieldMental;
+    setPieces: SetPiecesSkills;
 }
 
 

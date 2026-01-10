@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git reset:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}
